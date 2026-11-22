@@ -18,7 +18,7 @@ jobs:
       - name: Extraire le ZIP
         run: |
           mkdir -p temp
-          unzip -o monsieur-blanc-v1.zip -d temp
+          unzip -o monsieur-blanc-v2.zip -d temp
           cp -R temp/monsieur-blanc/. .
           rm -rf temp
 
