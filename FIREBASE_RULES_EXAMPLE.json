@@ -1,0 +1,28 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$roomId": {
+        ".read": "auth != null && root.child('rooms').child($roomId).child('members').child(auth.uid).exists()",
+        ".write": false,
+        "public": {
+          ".read": "auth != null && root.child('rooms').child($roomId).child('members').child(auth.uid).exists()",
+          ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid"
+        },
+        "members": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "privateWords": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && root.child('rooms').child($roomId).child('hostUid').val() === auth.uid"
+          }
+        }
+      }
+    }
+  }
+}
