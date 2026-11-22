@@ -1,11 +1,15 @@
 
-name: Extraire Monsieur Blanc
+name: Extraire Monsieur Blanc V2
 
 on:
   workflow_dispatch:
 
 permissions:
   contents: write
+
+concurrency:
+  group: extraction-monsieur-blanc
+  cancel-in-progress: false
 
 jobs:
   extract:
@@ -14,20 +18,70 @@ jobs:
     steps:
       - name: Recuperer le depot
         uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
 
-      - name: Extraire le ZIP
+      - name: Verifier et extraire le ZIP
         run: |
-          mkdir -p temp
-          unzip -o monsieur-blanc-v2.zip -d temp
-          cp -R temp/monsieur-blanc/. .
-          rm -rf temp
+          set -e
+
+          if [ ! -f monsieur-blanc-v2.zip ]; then
+            echo "ERREUR : ZIP introuvable"
+            exit 1
+          fi
+
+          rm -rf .extraction-temp
+          mkdir .extraction-temp
+
+          unzip -oq monsieur-blanc-v2.zip -d .extraction-temp
+
+          INDEX=$(find .extraction-temp -type f -name index.html | head -n 1)
+
+          if [ -z "$INDEX" ]; then
+            echo "ERREUR : index.html introuvable dans le ZIP"
+            exit 1
+          fi
+
+          DOSSIER=$(dirname "$INDEX")
+
+          cp -a "$DOSSIER"/. .
+
+          rm -rf .extraction-temp
+
+          echo "Extraction terminee"
+          ls -la
 
       - name: Enregistrer les fichiers
         run: |
+          set -e
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
-          git commit -m "Extraction automatique Monsieur Blanc" || echo "Aucun changement"
-          git pull --rebase origin main
-          git push origin HEAD:main
+
+          git add -A
+
+          if git diff --cached --quiet; then
+            echo "Aucun changement a enregistrer"
+            exit 0
+          fi
+
+          git commit -m "Installation Monsieur Blanc V2"
+
+          for i in 1 2 3 4 5; do
+            echo "Tentative de publication $i"
+
+            git fetch origin main
+            git rebase origin/main
+
+            if git push origin HEAD:main; then
+              echo "Publication reussie"
+              exit 0
+            fi
+
+            echo "Nouvelle tentative..."
+          done
+
+          echo "ERREUR : impossible de publier"
+          exit 1
           
