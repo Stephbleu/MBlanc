@@ -1,5 +1,4 @@
-
-name: Extraire Monsieur Blanc V2
+name: Extraire Monsieur Blanc V3
 
 on:
   workflow_dispatch:
@@ -26,7 +25,7 @@ jobs:
         run: |
           set -e
 
-          if [ ! -f monsieur-blanc-v2.zip ]; then
+          if [ ! -f monsieur-blanc-v3.zip ]; then
             echo "ERREUR : ZIP introuvable"
             exit 1
           fi
@@ -34,7 +33,7 @@ jobs:
           rm -rf .extraction-temp
           mkdir .extraction-temp
 
-          unzip -oq monsieur-blanc-v2.zip -d .extraction-temp
+          unzip -oq monsieur-blanc-v3.zip -d .extraction-temp
 
           INDEX=$(find .extraction-temp -type f -name index.html | head -n 1)
 
@@ -66,7 +65,7 @@ jobs:
             exit 0
           fi
 
-          git commit -m "Installation Monsieur Blanc V2"
+          git commit -m "Installation Monsieur Blanc V3"
 
           for i in 1 2 3 4 5; do
             echo "Tentative de publication $i"
