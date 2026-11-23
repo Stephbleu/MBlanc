@@ -30,3 +30,15 @@ Remplacez les fichiers du dépôt par ceux de la nouvelle version. Le cache a é
 
 ## Tests
 Ouvrir `tests/game.test.js` avec un environnement JavaScript prenant en charge les scripts du navigateur ou exécuter les contrôles manuels décrits dans l'application.
+
+
+## Version 3 — identité graphique personnalisée
+
+- Accueil minimaliste avec la mascotte chien.
+- Illustrations originales fournies pour Civil, Undercover et Monsieur Blanc.
+- Thème clair et épuré sur les écrans de jeu.
+- Le bouton d'installation est masqué lorsque la PWA fonctionne en mode installé.
+- Rappel confidentiel du rôle depuis l'écran de discussion.
+- Bibliothèque de mots et scores conservés.
+
+Les illustrations sont stockées dans `images/`. Le mode local fonctionne sans Firebase.
