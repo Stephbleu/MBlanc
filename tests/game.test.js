@@ -42,4 +42,12 @@ const seen=[g.state.pair.id];
 for(let r=0;r<2;r++){g.nextRound(many);seen.push(g.state.pair.id)}
 assert.equal(new Set(seen).size,3);
 assert.equal(g.state.round,3);assert.equal(g.state.players[0].score,5);
+
+// M. Blanc ne commence jamais
+for(let i=0;i<300;i++){const t=mk(4,1,1);const st=t.state.players.find(p=>p.id===t.state.starterId);assert.notEqual(st.role,'blank')}
+// 1re manche : prénoms à saisir ; manches suivantes : non
+g=mk(3,0,0);assert.equal(g.state.needNames,true);g.nextRound(pairs);assert.equal(g.state.needNames,false);
+// gagnants
+g=mk(4,1,1);setRoles(g,['civil','civil','undercover','blank']);g.award('civil',{civil:2,undercover:3,blank:4});
+assert.deepEqual(g.winners().map(p=>p.role),['civil','civil']);
 console.log('OK — attribution, victoire, égalités vides, devinette, scores, manches');

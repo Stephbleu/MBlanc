@@ -180,3 +180,19 @@ textarea:focus,input:focus,.recall-select:focus{border-color:var(--ink);backgrou
 .toast.show{opacity:1;transform:translate(-50%,0)}
 
 @media(prefers-reduced-motion:reduce){.screen{animation:none}*{transition:none!important}}
+
+/* Saisie du prénom à la distribution */
+.name-input{text-align:center;font-size:24px!important;font-weight:700;padding:16px!important;margin:0 0 10px!important}
+.stage .error{margin:0 0 8px}
+
+/* Page de victoire */
+.winners{display:grid;gap:10px;margin:6px 0 22px}
+.winner{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;border-radius:16px;background:var(--soft);text-align:left}
+.winner b{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.role-chip{flex:none;font-size:10px;font-weight:700;letter-spacing:.12em;padding:6px 11px;border-radius:30px;background:var(--red-soft);color:var(--red-ink)}
+.role-chip.undercover{background:#eceef9;color:#44508f}
+.role-chip.blank{background:var(--dark);color:#fff}
+.others{margin:0 0 16px;text-align:left}
+.others .tiny{margin-bottom:6px}
+.other{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+#victoryScreen .words-line{margin:6px 0 12px}

@@ -36,9 +36,9 @@
     <div class="kicker">Préparation</div><h2>Composer la partie</h2>
 
     <div class="block">
-      <label class="field-label" for="playerNames">Joueurs <small>Un prénom par ligne · 3 à 20 joueurs</small></label>
-      <textarea id="playerNames" rows="5" placeholder="Alex&#10;Camille&#10;Léo&#10;Sarah"></textarea>
-      <div class="inline-help"><span id="playerCount">0 joueur</span><span id="civilCount" class="pill">0 civils</span></div>
+      <div class="field-label">Joueurs <small>De 3 à 20 · chacun saisira son prénom lors de la distribution</small></div>
+      <div class="row"><div><b>Nombre de joueurs</b></div><div class="counter"><button data-players="-1" aria-label="Moins de joueurs">−</button><b id="playerNum">4</b><button data-players="1" aria-label="Plus de joueurs">+</button></div></div>
+      <div class="inline-help"><span></span><span id="civilCount" class="pill">2 civils</span></div>
     </div>
 
     <div class="block">
@@ -67,14 +67,16 @@
   <!-- DISTRIBUTION -->
   <section id="dealScreen" class="screen center">
     <div class="kicker">Distribution confidentielle</div>
-    <p class="muted">Passez le téléphone au joueur indiqué.<br>Personne d'autre ne regarde.</p>
+    <p class="muted" id="dealIntro">Passez le téléphone au joueur indiqué.<br>Personne d'autre ne regarde.</p>
     <div class="stage">
-      <div class="muted tiny">C'EST AU TOUR DE</div>
+      <div class="muted tiny" id="dealWho">C'EST AU TOUR DE</div>
       <h2 id="dealPlayer" class="big-name">Joueur</h2>
-      <button class="primary full" id="revealBtn">Découvrir mon rôle</button>
+      <input id="nameInput" type="text" class="name-input hidden" placeholder="Ton prénom" maxlength="20" autocomplete="off" aria-label="Prénom du joueur">
+      <p class="error" id="nameError" role="alert"></p>
+      <button class="primary full" id="revealBtn">Découvrir mon mot</button>
       <div id="secretReveal" class="secret hidden">
-        <img class="role-art" id="secretRoleImage" src="images/role-civil.webp" alt="">
-        <div class="role-label" id="secretRole">CIVIL</div>
+        <img class="role-art hidden" id="secretRoleImage" src="images/role-blank.webp" alt="">
+        <div class="role-label" id="secretRole">VOTRE MOT</div>
         <div class="secret-word" id="secretWord">MOT</div>
         <p class="muted" id="secretHint"></p>
         <button class="secondary full" id="hideSecretBtn">J'ai mémorisé — masquer</button>
@@ -90,7 +92,7 @@
     <p class="starter" id="starterLine"></p>
     <div class="timer"><b id="timerText">02:00</b><button class="secondary" id="timerBtn">Démarrer</button></div>
     <div class="players-grid" id="playersGrid"></div>
-    <button class="secondary full" id="recallOpenBtn">J'ai oublié mon rôle</button>
+    <button class="secondary full" id="recallOpenBtn">J'ai oublié mon mot</button>
     <button class="primary full" id="goVoteBtn">Passer au vote <span>→</span></button>
     <button class="text-btn full" id="leaveGameBtn">Quitter (la partie est sauvegardée)</button>
   </section>
@@ -105,7 +107,7 @@
       <div id="voteTargets" class="vote-targets"></div>
     </div>
     <div class="progress" id="voteProgress"></div>
-    <button class="text-btn full" id="recallOpenVoteBtn">J'ai oublié mon rôle</button>
+    <button class="text-btn full" id="recallOpenVoteBtn">J'ai oublié mon mot</button>
   </section>
 
   <!-- RÉSULTAT DU VOTE -->
@@ -130,6 +132,18 @@
       <button class="primary full" id="submitGuess">Valider ma réponse</button>
     </div>
     <button class="primary full" id="continueBtn">Continuer</button>
+  </section>
+
+  <!-- VICTOIRE -->
+  <section id="victoryScreen" class="screen center">
+    <div class="kicker">Fin de manche</div>
+    <h2 id="victoryTitle">Victoire</h2>
+    <p class="muted" id="victoryDetail"></p>
+    <img class="role-art" id="victoryImage" src="images/role-civil.webp" alt="">
+    <div class="winners" id="victoryWinners"></div>
+    <div class="others" id="victoryOthers"></div>
+    <p class="words-line" id="victoryWords"></p>
+    <button class="primary full" id="seeScoresBtn">Voir les scores <span>→</span></button>
   </section>
 
   <!-- SCORES -->
@@ -188,8 +202,8 @@
     <div class="rules">
       <h3>Les civils</h3><p>Ils reçoivent tous le même mot et doivent identifier les infiltrés.</p>
       <h3>Les undercover</h3><p>Ils reçoivent un mot proche de celui des civils. Ils doivent se fondre dans le groupe.</p>
-      <h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot. Il improvise et, s'il est démasqué, tente de deviner le mot des civils.</p>
-      <h3>Un tour de jeu</h3><p>1. Chacun découvre secrètement son rôle.<br>2. Les joueurs discutent et donnent des indices.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
+      <h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot et le sait. Il improvise et, s'il est démasqué, tente de deviner le mot des civils. Il ne commence jamais la discussion.</p>
+      <h3>Un tour de jeu</h3><p>1. Chacun saisit son prénom puis découvre secrètement son mot. Civils et undercover ne savent pas lequel ils sont : leur rôle n'est révélé qu'à l'élimination ou à la victoire.<br>2. Les joueurs discutent et donnent des indices.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
       <h3>Victoire</h3><p>Les civils gagnent quand tous les infiltrés sont éliminés. Les undercover gagnent quand ils sont aussi nombreux que les civils. Monsieur Blanc gagne s'il devine le mot, ou s'il reste seul face à un civil.</p>
     </div>
   </section>
@@ -202,11 +216,11 @@
     <div id="recallChoose">
       <div class="kicker">Rappel confidentiel</div><h2>Qui êtes-vous ?</h2>
       <select id="recallPlayer" class="recall-select"></select>
-      <button class="primary full" id="recallRevealBtn">Afficher mon rôle</button>
+      <button class="primary full" id="recallRevealBtn">Afficher mon mot</button>
     </div>
     <div id="recallSecret" class="hidden center">
-      <img class="role-art" id="recallRoleImage" src="images/role-civil.webp" alt="">
-      <div class="role-label" id="recallRole">CIVIL</div>
+      <img class="role-art hidden" id="recallRoleImage" src="images/role-blank.webp" alt="">
+      <div class="role-label" id="recallRole">VOTRE MOT</div>
       <div class="secret-word" id="recallWord">MOT</div>
       <button class="secondary full" id="recallHideBtn">Masquer</button>
     </div>

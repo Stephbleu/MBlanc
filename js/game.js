@@ -38,14 +38,21 @@ class UndercoverGame{
     this.state={
       players, pair, round:carry.round||1, usedKeys:[...used,pairKey(pair)],
       votes:{}, voteOrder:[], drawn:null, eliminated:null, guessDone:false,
-      options, winner:null, outcome:null, starterId:null
+      options, winner:null, outcome:null, starterId:null,
+      needNames:!carry.round   // 1re manche : les joueurs saisissent leur prénom à la distribution
     };
     this.pickStarter();
     return this.state;
   }
 
   active(){ return this.state.players.filter(p=>p.alive); }
-  pickStarter(){ const a=this.active(); this.state.starterId=a[Math.floor(Math.random()*a.length)].id; }
+  // Monsieur Blanc ne commence jamais (sauf s'il n'y a aucun autre joueur en vie)
+  pickStarter(){
+    const a=this.active(), pool=a.filter(p=>p.role!=='blank');
+    const from=pool.length?pool:a;
+    this.state.starterId=from[Math.floor(Math.random()*from.length)].id;
+  }
+  winners(){ const w=this.state.winner; return this.state.players.filter(p=>p.role===w); }
 
   tally(){
     const tally={};

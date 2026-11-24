@@ -1,6 +1,13 @@
-# MONSIEUR BLANC — V3.1
+# MONSIEUR BLANC — V3.2
 
 Jeu Undercover local, installable comme PWA (Android, tablette, ordinateur). Un seul téléphone, sans compte ni serveur.
+
+## Nouveautés de la v3.2
+- **1 000 paires de mots** (500 nouvelles, sans aucun mot en commun avec les anciennes), 25 catégories × 40 paires.
+- **Composer la partie** : on ne choisit plus que le nombre de joueurs ; chacun saisit son prénom à la première distribution.
+- **Rôles cachés** : civils et undercover ne voient que leur mot et ignorent leur rôle ; il est révélé à l'élimination ou à la victoire. Monsieur Blanc, lui, sait qu'il l'est.
+- **Monsieur Blanc ne commence jamais** la discussion.
+- **Page de victoire** : gagnants avec leur rôle, rôles de tous les autres, mots de la manche, puis bouton « Voir les scores ».
 
 ## Nouveautés de la v3.1
 **Corrections**
@@ -16,7 +23,7 @@ Jeu Undercover local, installable comme PWA (Android, tablette, ordinateur). Un 
 **Apparence** — tous les écrans reprennent le style de l'accueil : fond blanc, sans cadres, boutons sombres, une touche de rouge.
 
 ## Publication GitHub Pages
-Déposez le contenu à la racine du dépôt, Settings → Pages → branche `main`, dossier `/ (root)`. Le cache est passé à `monsieur-blanc-v4` : les données locales sont conservées.
+Déposez le contenu à la racine du dépôt, Settings → Pages → branche `main`, dossier `/ (root)`. Le cache est passé à `monsieur-blanc-v5` : les données locales sont conservées.
 
 ## Tests
 `node tests/game.test.js`
