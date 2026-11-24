@@ -1,5 +1,11 @@
-const CACHE='monsieur-blanc-v3';
-const ASSETS=['./','./index.html','./manifest.json','./css/style.css','./js/words.js','./js/storage.js','./js/game.js','./js/app.js','./data/word-pairs.json','./icons/icon-192.png','./icons/icon-512.png','./images/role-blank.webp','./images/role-civil.webp','./images/role-undercover.webp','./images/home-dog.webp'];
-self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(ASSETS)));self.skipWaiting()});
-self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
-self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{if(response.ok&&new URL(event.request.url).origin===self.location.origin){const copy=response.clone();caches.open(CACHE).then(c=>c.put(event.request,copy))}return response}).catch(()=>caches.match('./index.html'))))});
+const CACHE='monsieur-blanc-v4';
+const ASSETS=['./','./index.html','./manifest.json','./css/style.css','./js/words.js','./js/storage.js','./js/game.js','./js/app.js','./icons/icon-192.png','./icons/icon-512.png','./images/role-blank.webp','./images/role-civil.webp','./images/role-undercover.webp','./images/home-dog.webp'];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));self.skipWaiting()});
+self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==CACHE).map(k=>caches.delete(k)))));self.clients.claim()});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  e.respondWith(caches.match(e.request).then(hit=>hit||fetch(e.request).then(r=>{
+    if(r.ok&&new URL(e.request.url).origin===self.location.origin){const copy=r.clone();caches.open(CACHE).then(c=>c.put(e.request,copy))}
+    return r;
+  }).catch(()=>e.request.mode==='navigate'?caches.match('./index.html'):Response.error())));
+});

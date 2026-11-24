@@ -1,42 +1,219 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#ffffff"><meta name="description" content="Monsieur Blanc — jeu d'infiltration et de déduction">
-  <link rel="manifest" href="manifest.json"><link rel="icon" href="icons/icon-192.png">
-  <link rel="stylesheet" href="css/style.css"><title>Monsieur Blanc</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Monsieur Blanc — jeu d'infiltration et de déduction">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="css/style.css">
+  <title>Monsieur Blanc</title>
 </head>
 <body>
-<header class="topbar"><div class="brand"><span class="brand-mark">MB</span><div><b>MONSIEUR BLANC</b><small>LE JEU DE L'INFILTRATION</small></div></div><button id="settingsBtn" class="icon-btn" aria-label="Paramètres">⚙</button></header>
 <main id="app" class="shell">
+
+  <!-- ACCUEIL -->
   <section id="homeScreen" class="screen active home-screen">
-    <div class="home-branding"><div class="home-title">MONSIEUR <span>BLANC</span></div><img class="home-dog" src="images/home-dog.webp" alt="Le chien mascotte de Monsieur Blanc"></div>
-    <div class="home-actions"><button class="primary home-play" id="newGameBtn">JOUER <span>→</span></button><button class="secondary home-install" id="installBtn">Installer l'application</button></div>
+    <div class="home-branding">
+      <div class="home-title">MONSIEUR <span>BLANC</span></div>
+      <img class="home-dog" src="images/home-dog.webp" alt="La mascotte de Monsieur Blanc">
+    </div>
+    <div class="home-actions">
+      <button class="primary hidden" id="resumeBtn">REPRENDRE LA PARTIE <span>→</span></button>
+      <button class="primary home-play" id="newGameBtn">JOUER <span>→</span></button>
+      <button class="secondary home-install" id="installBtn">Installer l'application</button>
+    </div>
+    <nav class="home-links" aria-label="Autres pages">
+      <button id="homeRules">Règles</button><i></i><button id="homeLibrary">Mots</button><i></i><button id="homeSettings">Réglages</button>
+    </nav>
   </section>
+
+  <!-- PRÉPARATION -->
   <section id="setupScreen" class="screen">
-    <button class="back" data-home>← Retour</button><div class="section-kicker">PRÉPARATION</div><h2>Composer la partie</h2>
-    <div class="panel"><label>Mode de jeu</label><div class="mode-note"> <span class="mode-icon">◈</span> Partie locale — un seul téléphone, sans connexion Internet.</div>
-      <label for="playerNames">Prénoms des joueurs <small>Un prénom par ligne · 3 à 20 joueurs</small></label><textarea id="playerNames" rows="5" placeholder="Alex&#10;Camille&#10;Léo&#10;Sarah"></textarea><div class="inline-help"><span id="playerCount">0 joueur</span><span>Minimum 3</span></div>
+    <button class="back" data-home>← Accueil</button>
+    <div class="kicker">Préparation</div><h2>Composer la partie</h2>
+
+    <div class="block">
+      <label class="field-label" for="playerNames">Joueurs <small>Un prénom par ligne · 3 à 20 joueurs</small></label>
+      <textarea id="playerNames" rows="5" placeholder="Alex&#10;Camille&#10;Léo&#10;Sarah"></textarea>
+      <div class="inline-help"><span id="playerCount">0 joueur</span><span id="civilCount" class="pill">0 civils</span></div>
     </div>
-    <div class="panel"><div class="panel-head"><div><label>Répartition des rôles</label><small>Le nombre de civils est calculé automatiquement.</small></div><span class="pill" id="civilCount">0 civils</span></div>
-      <div class="counter-row"><div><b>Undercover</b><small>Mot différent, proche du mot civil</small></div><div class="counter"><button data-counter="undercover" data-delta="-1">−</button><b id="undercoverVal">1</b><button data-counter="undercover" data-delta="1">+</button></div></div>
-      <div class="counter-row"><div><b>Monsieur Blanc</b><small>Aucun mot à découvrir</small></div><div class="counter"><button data-counter="blank" data-delta="-1">−</button><b id="blankVal">1</b><button data-counter="blank" data-delta="1">+</button></div></div>
+
+    <div class="block">
+      <div class="field-label">Rôles <small>Le nombre de civils est calculé automatiquement.</small></div>
+      <div class="row"><div><b>Undercover</b><small>Un mot proche de celui des civils</small></div><div class="counter"><button data-counter="undercover" data-delta="-1" aria-label="Moins d'undercover">−</button><b id="undercoverVal">1</b><button data-counter="undercover" data-delta="1" aria-label="Plus d'undercover">+</button></div></div>
+      <div class="row"><div><b>Monsieur Blanc</b><small>Aucun mot à découvrir</small></div><div class="counter"><button data-counter="blank" data-delta="-1" aria-label="Moins de Monsieur Blanc">−</button><b id="blankVal">1</b><button data-counter="blank" data-delta="1" aria-label="Plus de Monsieur Blanc">+</button></div></div>
     </div>
-    <div class="panel"><label>Catégories</label><div id="categoryChoices" class="chips"></div><label class="spaced">Difficulté</label><div class="segmented" id="difficultyChoices"><button class="selected" data-difficulty="all">Toutes</button><button data-difficulty="facile">Facile</button><button data-difficulty="intermediaire">Intermédiaire</button><button data-difficulty="difficile">Difficile</button></div></div>
-    <div class="panel"><label>Règles de manche</label><div class="toggle-row"><span>Révéler le rôle après élimination</span><input type="checkbox" id="revealRole" checked></div><div class="toggle-row"><span>Monsieur Blanc peut deviner le mot</span><input type="checkbox" id="blankGuess" checked></div><div class="toggle-row"><span>Autoriser les égalités (revote)</span><input type="checkbox" id="tieRevote" checked></div></div>
-    <button class="primary full" id="startGameBtn">Distribuer les rôles <span>→</span></button><p class="error" id="setupError"></p>
+
+    <div class="block">
+      <div class="field-label">Mots <small id="pairCount">—</small></div>
+      <div id="categoryChoices" class="chips"></div>
+      <div class="segmented" id="difficultyChoices"><button class="selected" data-difficulty="all">Toutes</button><button data-difficulty="facile">Facile</button><button data-difficulty="intermediaire">Moyen</button><button data-difficulty="difficile">Difficile</button></div>
+    </div>
+
+    <div class="block">
+      <div class="field-label">Règles</div>
+      <label class="row toggle-row"><span>Révéler le rôle après élimination</span><input type="checkbox" id="revealRole" checked></label>
+      <label class="row toggle-row"><span>Monsieur Blanc peut deviner le mot<small>Impose de révéler les rôles</small></span><input type="checkbox" id="blankGuess" checked></label>
+      <label class="row toggle-row"><span>Revote en cas d'égalité<small>Sinon, le hasard tranche</small></span><input type="checkbox" id="tieRevote" checked></label>
+    </div>
+
+    <p class="error" id="setupError" role="alert"></p>
+    <button class="primary full" id="startGameBtn">Distribuer les rôles <span>→</span></button>
   </section>
-  <section id="dealScreen" class="screen"><div class="section-kicker">DISTRIBUTION CONFIDENTIELLE</div><h2>À chacun son secret.</h2><p class="muted">Passez le téléphone au joueur indiqué. Personne ne doit regarder.</p><div class="deal-card"><div class="lock">◈</div><div class="muted">C'EST AU TOUR DE</div><h3 id="dealPlayer">Joueur</h3><button class="primary full" id="revealBtn">Découvrir mon rôle</button><div id="secretReveal" class="secret hidden"><img class="role-art" id="secretRoleImage" src="images/role-civil.webp" alt="Illustration du rôle"><div class="role-label" id="secretRole">CIVIL</div><div class="secret-word" id="secretWord">MOT</div><p id="secretHint"></p><button class="secondary full" id="hideSecretBtn">J'ai mémorisé — masquer</button></div></div><div class="progress" id="dealProgress"></div></section>
-  <section id="playScreen" class="screen"><div class="game-head"><div><div class="section-kicker">MANCHE <span id="roundNo">1</span></div><h2>La discussion</h2></div><span class="pill live">EN COURS</span></div><p class="muted">Chacun donne un indice à son tour. Évitez d'être trop précis… ou trop vague.</p><div class="timer-panel"><div><small>TEMPS DE DISCUSSION</small><b id="timerText">02:00</b></div><button class="secondary" id="timerBtn">Démarrer</button></div><div class="players-grid" id="playersGrid"></div><button class="secondary full recall-open" id="recallOpenBtn">J'ai oublié mon rôle</button><button class="primary full" id="goVoteBtn">Passer au vote <span>→</span></button></section>
-  <section id="voteScreen" class="screen"><div class="section-kicker">PHASE DE VOTE</div><h2>Qui est suspect ?</h2><p class="muted">Chaque joueur encore en jeu vote pour la personne qu'il souhaite éliminer. Le téléphone circule.</p><button class="secondary full recall-open" id="recallOpenVoteBtn">J'ai oublié mon rôle</button><div class="vote-card"><div class="vote-step" id="voteStep">Vote 1 / 4</div><h3 id="voterName">Joueur</h3><p class="muted">Choisissez une cible.</p><div id="voteTargets" class="vote-targets"></div></div><div class="progress" id="voteProgress"></div></section>
-  <section id="resultScreen" class="screen"><div class="section-kicker">DÉCOMPTE DES VOIX</div><h2>Le verdict.</h2><div id="voteResults" class="results-list"></div><div id="tieActions" class="hidden"><p class="muted">Égalité : un nouveau vote entre les joueurs concernés.</p><button class="primary full" id="revoteBtn">Organiser un revote</button></div><div id="eliminationActions"><button class="primary full" id="eliminateBtn">Confirmer l'élimination</button></div></section>
-  <section id="revealScreen" class="screen"><div class="section-kicker">JOUEUR ÉLIMINÉ</div><div class="elimination-mark">×</div><h2 id="eliminatedName">Joueur éliminé</h2><img class="role-art role-art-reveal" id="eliminatedRoleImage" src="images/role-undercover.webp" alt="Illustration du rôle"><div class="role-reveal" id="eliminatedRole">UNDERCOVER</div><div id="guessPanel" class="panel hidden"><h3>Dernière chance, Monsieur Blanc.</h3><p class="muted">Quel était le mot des civils ?</p><input id="guessInput" type="text" placeholder="Votre réponse"><button class="primary full" id="submitGuess">Valider ma réponse</button></div><button class="primary full" id="continueBtn">Continuer</button></section>
-  <section id="scoreScreen" class="screen"><div class="section-kicker">FIN DE MANCHE</div><h2 id="roundOutcome">Manche terminée</h2><p class="muted" id="outcomeDetail"></p><div class="score-table-wrap"><table class="score-table"><thead><tr><th>Joueur</th><th>Rôle</th><th>Manche</th><th>Total</th></tr></thead><tbody id="scoreRows"></tbody></table></div><button class="primary full" id="nextRoundBtn">Manche suivante <span>→</span></button><button class="secondary full spaced" id="endGameBtn">Terminer la partie</button></section>
-  <section id="finalScreen" class="screen"><div class="section-kicker">MISSION TERMINÉE</div><div class="trophy">♛</div><h2>Classement final</h2><p class="muted" id="finalSummary"></p><div id="finalRanking" class="ranking"></div><button class="primary full" id="newFromFinalBtn">Nouvelle partie</button></section>
-  <section id="libraryScreen" class="screen"><button class="back" data-home>← Retour</button><div class="section-kicker">CONTENU DU JEU</div><h2>Bibliothèque</h2><div class="stats-strip"><div><b id="pairTotal">—</b><small>paires</small></div><div><b id="wordTotal">—</b><small>mots distincts</small></div><div><b id="duplicateTotal">—</b><small>doublons</small></div></div><p class="muted" id="libraryStatus">Chargement des données…</p><div class="panel"><label>Ajouter une paire</label><input id="wordCivil" placeholder="Mot des civils"><input id="wordUndercover" placeholder="Mot des undercover"><input id="wordCategory" placeholder="Catégorie (ex. Animaux)"><button class="secondary full" id="addPairBtn">Ajouter à ma bibliothèque</button></div><div class="panel"><label>Importer / exporter</label><div class="import-actions"><button class="secondary" id="exportBtn">Exporter JSON</button><label class="secondary file-label">Importer JSON/CSV<input type="file" id="importFile" accept=".json,.csv,text/csv,application/json"></label></div></div><div id="customPairs" class="custom-pairs"></div></section>
-  <section id="settingsScreen" class="screen"><button class="back" data-home>← Retour</button><div class="section-kicker">PERSONNALISATION</div><h2>Paramètres</h2><div class="panel"><label>Barème des points</label><div class="score-setting"><span>Victoire des civils</span><input type="number" id="pointsCivil" min="0" max="20" value="2"></div><div class="score-setting"><span>Victoire des undercover</span><input type="number" id="pointsUndercover" min="0" max="20" value="3"></div><div class="score-setting"><span>Victoire de Monsieur Blanc</span><input type="number" id="pointsBlank" min="0" max="20" value="4"></div><button class="secondary full" id="saveSettingsBtn">Enregistrer</button><button class="secondary full spaced" id="openLibraryFromSettings">Bibliothèque de mots</button><button class="text-btn full" id="rulesBtn">Comment jouer ?</button></div><div class="panel"><div class="toggle-row"><span>Effets sonores</span><input type="checkbox" id="soundEnabled" checked></div><div class="toggle-row"><span>Animations</span><input type="checkbox" id="animationsEnabled" checked></div></div></section>
-  <section id="rulesScreen" class="screen"><button class="back" data-home>← Retour</button><div class="section-kicker">LES RÈGLES</div><h2>Comment jouer ?</h2><div class="panel rules"><h3>Les civils</h3><p>Ils reçoivent tous le même mot et doivent identifier les infiltrés.</p><h3>Les undercover</h3><p>Ils reçoivent un mot proche de celui des civils. Ils doivent se fondre dans le groupe.</p><h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot. Il improvise et tente de deviner le mot des civils s'il est démasqué.</p><h3>Un tour de jeu</h3><p>1. Chacun découvre secrètement son rôle. 2. Les joueurs discutent et donnent des indices. 3. Tous les joueurs actifs votent. 4. Le joueur ayant le plus de voix est éliminé. 5. La partie continue jusqu'à la victoire d'un camp.</p></div></section>
+
+  <!-- DISTRIBUTION -->
+  <section id="dealScreen" class="screen center">
+    <div class="kicker">Distribution confidentielle</div>
+    <p class="muted">Passez le téléphone au joueur indiqué.<br>Personne d'autre ne regarde.</p>
+    <div class="stage">
+      <div class="muted tiny">C'EST AU TOUR DE</div>
+      <h2 id="dealPlayer" class="big-name">Joueur</h2>
+      <button class="primary full" id="revealBtn">Découvrir mon rôle</button>
+      <div id="secretReveal" class="secret hidden">
+        <img class="role-art" id="secretRoleImage" src="images/role-civil.webp" alt="">
+        <div class="role-label" id="secretRole">CIVIL</div>
+        <div class="secret-word" id="secretWord">MOT</div>
+        <p class="muted" id="secretHint"></p>
+        <button class="secondary full" id="hideSecretBtn">J'ai mémorisé — masquer</button>
+      </div>
+    </div>
+    <div class="progress" id="dealProgress"></div>
+  </section>
+
+  <!-- DISCUSSION -->
+  <section id="playScreen" class="screen">
+    <div class="kicker">Manche <span id="roundNo">1</span></div><h2>La discussion</h2>
+    <p class="muted">Chacun donne un indice à son tour. Ni trop précis… ni trop vague.</p>
+    <p class="starter" id="starterLine"></p>
+    <div class="timer"><b id="timerText">02:00</b><button class="secondary" id="timerBtn">Démarrer</button></div>
+    <div class="players-grid" id="playersGrid"></div>
+    <button class="secondary full" id="recallOpenBtn">J'ai oublié mon rôle</button>
+    <button class="primary full" id="goVoteBtn">Passer au vote <span>→</span></button>
+    <button class="text-btn full" id="leaveGameBtn">Quitter (la partie est sauvegardée)</button>
+  </section>
+
+  <!-- VOTE -->
+  <section id="voteScreen" class="screen center">
+    <div class="kicker">Phase de vote</div><h2>Qui est suspect ?</h2>
+    <p class="muted">Chaque joueur encore en jeu vote en secret. Le téléphone circule.</p>
+    <div class="stage">
+      <div class="kicker" id="voteStep">Vote 1 / 4</div>
+      <h3 id="voterName" class="big-name small">Joueur</h3>
+      <div id="voteTargets" class="vote-targets"></div>
+    </div>
+    <div class="progress" id="voteProgress"></div>
+    <button class="text-btn full" id="recallOpenVoteBtn">J'ai oublié mon rôle</button>
+  </section>
+
+  <!-- RÉSULTAT DU VOTE -->
+  <section id="resultScreen" class="screen">
+    <div class="kicker">Décompte des voix</div><h2>Le verdict.</h2>
+    <div id="voteResults" class="results-list"></div>
+    <p class="muted result-note" id="resultNote"></p>
+    <div id="tieActions" class="hidden"><button class="primary full" id="revoteBtn">Organiser un revote</button></div>
+    <div id="eliminationActions"><button class="primary full" id="eliminateBtn">Confirmer l'élimination</button></div>
+  </section>
+
+  <!-- ÉLIMINATION -->
+  <section id="revealScreen" class="screen center">
+    <div class="kicker">Joueur éliminé</div>
+    <h2 id="eliminatedName" class="big-name">Joueur</h2>
+    <img class="role-art" id="eliminatedRoleImage" src="images/role-undercover.webp" alt="">
+    <div class="role-reveal" id="eliminatedRole">UNDERCOVER</div>
+    <div id="guessPanel" class="hidden guess">
+      <h3>Dernière chance, Monsieur Blanc.</h3>
+      <p class="muted">Quel était le mot des civils ?</p>
+      <input id="guessInput" type="text" placeholder="Votre réponse" autocomplete="off" autocapitalize="off">
+      <button class="primary full" id="submitGuess">Valider ma réponse</button>
+    </div>
+    <button class="primary full" id="continueBtn">Continuer</button>
+  </section>
+
+  <!-- SCORES -->
+  <section id="scoreScreen" class="screen">
+    <div class="kicker">Fin de manche</div><h2 id="roundOutcome">Manche terminée</h2>
+    <p class="muted" id="outcomeDetail"></p>
+    <p class="words-line" id="wordsLine"></p>
+    <table class="score-table"><thead><tr><th>Joueur</th><th>Rôle</th><th>Manche</th><th>Total</th></tr></thead><tbody id="scoreRows"></tbody></table>
+    <button class="primary full" id="nextRoundBtn">Manche suivante <span>→</span></button>
+    <button class="secondary full" id="endGameBtn">Terminer la partie</button>
+  </section>
+
+  <!-- CLASSEMENT -->
+  <section id="finalScreen" class="screen">
+    <div class="kicker">Mission terminée</div><h2>Classement final</h2>
+    <p class="muted" id="finalSummary"></p>
+    <div id="finalRanking" class="ranking"></div>
+    <button class="primary full" id="newFromFinalBtn">Nouvelle partie</button>
+    <button class="text-btn full" data-home>Accueil</button>
+  </section>
+
+  <!-- BIBLIOTHÈQUE -->
+  <section id="libraryScreen" class="screen">
+    <button class="back" data-home>← Accueil</button>
+    <div class="kicker">Contenu du jeu</div><h2>Bibliothèque</h2>
+    <div class="stats-strip"><div><b id="pairTotal">—</b><small>paires</small></div><div><b id="wordTotal">—</b><small>mots distincts</small></div><div><b id="duplicateTotal">—</b><small>doublons</small></div></div>
+    <p class="muted" id="libraryStatus">Chargement des données…</p>
+    <div class="block"><div class="field-label">Ajouter une paire</div>
+      <input id="wordCivil" type="text" placeholder="Mot des civils">
+      <input id="wordUndercover" type="text" placeholder="Mot des undercover">
+      <input id="wordCategory" type="text" placeholder="Catégorie (ex. Animaux)">
+      <button class="secondary full" id="addPairBtn">Ajouter à ma bibliothèque</button></div>
+    <div class="block"><div class="field-label">Importer / exporter <small>Export : uniquement vos paires personnelles</small></div>
+      <div class="import-actions"><button class="secondary" id="exportBtn">Exporter JSON</button><label class="secondary file-label">Importer JSON/CSV<input type="file" id="importFile" accept=".json,.csv,text/csv,application/json"></label></div></div>
+    <div id="customPairs" class="custom-pairs"></div>
+  </section>
+
+  <!-- RÉGLAGES -->
+  <section id="settingsScreen" class="screen">
+    <button class="back" data-home>← Accueil</button>
+    <div class="kicker">Personnalisation</div><h2>Réglages</h2>
+    <div class="block"><div class="field-label">Barème des points</div>
+      <label class="row"><span>Victoire des civils</span><input type="number" id="pointsCivil" min="0" max="20" value="2"></label>
+      <label class="row"><span>Victoire des undercover</span><input type="number" id="pointsUndercover" min="0" max="20" value="3"></label>
+      <label class="row"><span>Victoire de Monsieur Blanc</span><input type="number" id="pointsBlank" min="0" max="20" value="4"></label></div>
+    <div class="block"><label class="row toggle-row"><span>Animations</span><input type="checkbox" id="animationsEnabled" checked></label></div>
+    <button class="primary full" id="saveSettingsBtn">Enregistrer</button>
+    <button class="secondary full" id="openLibraryFromSettings">Bibliothèque de mots</button>
+    <button class="text-btn full" id="rulesBtn">Comment jouer ?</button>
+  </section>
+
+  <!-- RÈGLES -->
+  <section id="rulesScreen" class="screen">
+    <button class="back" data-home>← Accueil</button>
+    <div class="kicker">Les règles</div><h2>Comment jouer ?</h2>
+    <div class="rules">
+      <h3>Les civils</h3><p>Ils reçoivent tous le même mot et doivent identifier les infiltrés.</p>
+      <h3>Les undercover</h3><p>Ils reçoivent un mot proche de celui des civils. Ils doivent se fondre dans le groupe.</p>
+      <h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot. Il improvise et, s'il est démasqué, tente de deviner le mot des civils.</p>
+      <h3>Un tour de jeu</h3><p>1. Chacun découvre secrètement son rôle.<br>2. Les joueurs discutent et donnent des indices.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
+      <h3>Victoire</h3><p>Les civils gagnent quand tous les infiltrés sont éliminés. Les undercover gagnent quand ils sont aussi nombreux que les civils. Monsieur Blanc gagne s'il devine le mot, ou s'il reste seul face à un civil.</p>
+    </div>
+  </section>
 </main>
+
+<!-- RAPPEL DU RÔLE -->
+<div id="roleRecall" class="recall-overlay hidden" role="dialog" aria-modal="true" aria-label="Rappel du rôle">
+  <div class="recall-modal">
+    <button class="recall-close" id="recallCloseBtn" aria-label="Fermer">×</button>
+    <div id="recallChoose">
+      <div class="kicker">Rappel confidentiel</div><h2>Qui êtes-vous ?</h2>
+      <select id="recallPlayer" class="recall-select"></select>
+      <button class="primary full" id="recallRevealBtn">Afficher mon rôle</button>
+    </div>
+    <div id="recallSecret" class="hidden center">
+      <img class="role-art" id="recallRoleImage" src="images/role-civil.webp" alt="">
+      <div class="role-label" id="recallRole">CIVIL</div>
+      <div class="secret-word" id="recallWord">MOT</div>
+      <button class="secondary full" id="recallHideBtn">Masquer</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status"></div>
 <script src="js/words.js"></script><script src="js/storage.js"></script><script src="js/game.js"></script><script src="js/app.js"></script>
-</body></html>
+</body>
+</html>

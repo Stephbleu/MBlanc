@@ -1,44 +1,22 @@
-# MONSIEUR BLANC — V2.0
+# MONSIEUR BLANC — V3.1
 
-Jeu Undercover local, installable comme PWA sur Android, tablette et ordinateur.
+Jeu Undercover local, installable comme PWA (Android, tablette, ordinateur). Un seul téléphone, sans compte ni serveur.
 
-## Fonctionnalités
-- Mode local sur un seul téléphone, sans compte ni serveur.
-- 500 paires intégrées (1 000 entrées de mots), classées par catégorie et difficulté.
-- Rôles Civil, Undercover et Monsieur Blanc illustrés.
-- Distribution secrète, discussions, votes, revotes, éliminations et victoire.
-- Scores cumulés entre les manches et réinitialisés lors d'une nouvelle partie.
-- Bibliothèque personnalisable avec import/export JSON et CSV.
-- Sauvegarde locale IndexedDB et fonctionnement hors ligne après le premier chargement.
-- Bouton d'installation PWA : sur Android, Chrome propose l'installation si le site est servi en HTTPS.
+## Nouveautés de la v3.1
+**Corrections**
+- La fenêtre « J'ai oublié mon rôle » existe enfin dans `index.html` (son absence faisait planter le script : catégories vides, pas de hors-ligne, pas de bibliothèque).
+- Plus de partie bloquée : Monsieur Blanc seul face à un civil gagne ; une égalité sans votants n'existe plus.
+- Égalité : revote avec tous les joueurs ; nouvelle égalité (ou revote désactivé) → tirage au sort.
+- Reprise de partie après fermeture de l'app (bouton « Reprendre la partie » sur l'accueil).
+- Export JSON limité aux paires personnelles ; import CSV robuste (guillemets, `;`, doublons ignorés).
+- La devinette de Monsieur Blanc impose de révéler les rôles (plus de fuite).
+- Minuteur, message d'erreur, limites de joueurs et de rôles corrigés ; une paire n'est pas rejouée avant d'avoir fait le tour.
+- Accueil : accès aux Règles, Mots et Réglages.
+
+**Apparence** — tous les écrans reprennent le style de l'accueil : fond blanc, sans cadres, boutons sombres, une touche de rouge.
 
 ## Publication GitHub Pages
-1. Déposez le contenu du projet à la racine du dépôt GitHub.
-2. Ouvrez **Settings → Pages**.
-3. Choisissez **Deploy from a branch**, branche `main`, dossier `/ (root)`, puis **Save**.
-4. Ouvrez l'URL GitHub Pages sur Android avec Chrome.
-5. Utilisez **Télécharger / installer sur cet appareil** ou le menu Chrome ⋮ → **Installer l'application** / **Ajouter à l'écran d'accueil**.
-
-## Utilisation hors ligne
-La première ouverture nécessite une connexion pour charger les ressources et enregistrer le Service Worker. Ensuite, l'application et les données intégrées sont mises en cache. Les données personnalisées et la partie sauvegardée sont stockées localement sur l'appareil.
-
-## Bibliothèque de mots
-Le fichier `data/word-pairs.json` contient exactement 500 paires. Chaque ligne possède `id`, `civil`, `undercover`, `category` et `difficulty`. Le total est contrôlé dans l'écran Bibliothèque.
-
-## Mise à jour
-Remplacez les fichiers du dépôt par ceux de la nouvelle version. Le cache a été renommé `monsieur-blanc-v2` afin de forcer le rechargement des ressources. Les données locales IndexedDB sont conservées.
+Déposez le contenu à la racine du dépôt, Settings → Pages → branche `main`, dossier `/ (root)`. Le cache est passé à `monsieur-blanc-v4` : les données locales sont conservées.
 
 ## Tests
-Ouvrir `tests/game.test.js` avec un environnement JavaScript prenant en charge les scripts du navigateur ou exécuter les contrôles manuels décrits dans l'application.
-
-
-## Version 3 — identité graphique personnalisée
-
-- Accueil minimaliste avec la mascotte chien.
-- Illustrations originales fournies pour Civil, Undercover et Monsieur Blanc.
-- Thème clair et épuré sur les écrans de jeu.
-- Le bouton d'installation est masqué lorsque la PWA fonctionne en mode installé.
-- Rappel confidentiel du rôle depuis l'écran de discussion.
-- Bibliothèque de mots et scores conservés.
-
-Les illustrations sont stockées dans `images/`. Le mode local fonctionne sans Firebase.
+`node tests/game.test.js`
