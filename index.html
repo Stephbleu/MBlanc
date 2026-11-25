@@ -38,6 +38,7 @@
     <div class="block">
       <div class="field-label">Joueurs <small>De 3 à 20 · chacun saisira son prénom lors de la distribution</small></div>
       <div class="row"><div><b>Nombre de joueurs</b></div><div class="counter"><button data-players="-1" aria-label="Moins de joueurs">−</button><b id="playerNum">4</b><button data-players="1" aria-label="Plus de joueurs">+</button></div></div>
+      <div id="groupChoices" class="chips hidden" aria-label="Groupes enregistrés"></div>
       <div class="inline-help"><span></span><span id="civilCount" class="pill">2 civils</span></div>
     </div>
 
@@ -72,14 +73,22 @@
       <div class="muted tiny" id="dealWho">C'EST AU TOUR DE</div>
       <h2 id="dealPlayer" class="big-name">Joueur</h2>
       <input id="nameInput" type="text" class="name-input hidden" placeholder="Ton prénom" maxlength="20" autocomplete="off" aria-label="Prénom du joueur">
+      <div id="nameSuggest" class="chips suggest hidden" aria-label="Suggestions de pseudos"></div>
       <p class="error" id="nameError" role="alert"></p>
-      <button class="primary full" id="revealBtn">Découvrir mon mot</button>
+      <button class="primary full" id="revealBtn">Valider mon pseudo</button>
       <div id="secretReveal" class="secret hidden">
-        <img class="role-art hidden" id="secretRoleImage" src="images/role-blank.webp" alt="">
-        <div class="role-label" id="secretRole">VOTRE MOT</div>
-        <div class="secret-word" id="secretWord">MOT</div>
-        <p class="muted" id="secretHint"></p>
-        <button class="secondary full" id="hideSecretBtn">J'ai mémorisé — masquer</button>
+        <div class="flip" id="dealCard" role="button" tabindex="0" aria-pressed="false" aria-label="Voir mon mot">
+          <div class="flip-inner">
+            <div class="flip-face flip-front"><div class="hold-icon" aria-hidden="true"></div><b class="holdLabel">Maintenir pour voir mon mot</b><small>Relâchez pour le masquer</small></div>
+            <div class="flip-face flip-back">
+              <img class="role-art hidden" id="secretRoleImage" src="images/role-blank.webp" alt="">
+              <div class="role-label" id="secretRole">VOTRE MOT</div>
+              <div class="secret-word" id="secretWord">MOT</div>
+              <p class="muted" id="secretHint"></p>
+            </div>
+          </div>
+        </div>
+        <button class="primary full hidden" id="hideSecretBtn">J'ai mémorisé — joueur suivant</button>
       </div>
     </div>
     <div class="progress" id="dealProgress"></div>
@@ -161,6 +170,8 @@
     <div class="kicker">Mission terminée</div><h2>Classement final</h2>
     <p class="muted" id="finalSummary"></p>
     <div id="finalRanking" class="ranking"></div>
+    <button class="secondary full" id="saveGroupBtn">Enregistrer ce groupe</button>
+    <div id="groupForm" class="group-form hidden"><input id="groupName" type="text" placeholder="Nom du groupe (ex. Famille)" maxlength="24" autocomplete="off"><button class="primary" id="groupSaveOk">Enregistrer</button></div>
     <button class="primary full" id="newFromFinalBtn">Nouvelle partie</button>
     <button class="text-btn full" data-home>Accueil</button>
   </section>
@@ -190,7 +201,13 @@
       <label class="row"><span>Victoire des undercover</span><input type="number" id="pointsUndercover" min="0" max="20" value="3"></label>
       <label class="row"><span>Victoire de Monsieur Blanc</span><input type="number" id="pointsBlank" min="0" max="20" value="4"></label>
       <label class="row"><span>M. Blanc complice<small>Quand les undercover gagnent et qu'il est encore en jeu</small></span><input type="number" id="pointsAccomplice" min="0" max="20" value="1"></label></div>
-    <div class="block"><label class="row toggle-row"><span>Animations</span><input type="checkbox" id="animationsEnabled" checked></label></div>
+    <div class="block">
+      <label class="row toggle-row"><span>Appui long pour voir le mot<small>Le mot disparaît dès que vous relâchez. Désactivé : on touche pour afficher et masquer.</small></span><input type="checkbox" id="holdEnabled" checked></label>
+      <label class="row toggle-row"><span>Vibrations<small>Non disponibles sur iPhone</small></span><input type="checkbox" id="vibrationEnabled" checked></label>
+      <label class="row toggle-row"><span>Animations<small>Retournement de carte, confettis…</small></span><input type="checkbox" id="animationsEnabled" checked></label>
+    </div>
+    <div class="block"><div class="field-label">Joueurs et groupes <small>Enregistrés sur cet appareil uniquement</small></div>
+      <div id="playersManage"></div></div>
     <button class="primary full" id="saveSettingsBtn">Enregistrer</button>
     <button class="secondary full" id="openLibraryFromSettings">Bibliothèque de mots</button>
     <button class="text-btn full" id="rulesBtn">Comment jouer ?</button>
@@ -208,7 +225,7 @@
       <h3>Les civils</h3><p>Ils reçoivent tous le même mot et doivent identifier les infiltrés.</p>
       <h3>Les undercover</h3><p>Ils reçoivent un mot proche de celui des civils. Ils doivent se fondre dans le groupe.</p>
       <h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot et le sait. Il improvise et, s'il est démasqué, tente de deviner le mot des civils. Il ne commence jamais la discussion.</p>
-      <h3>Un tour de jeu</h3><p>1. Chacun saisit son prénom puis découvre secrètement son mot. Civils et undercover ne savent pas lequel ils sont : leur rôle n'est révélé qu'à l'élimination ou à la victoire.<br>2. Le joueur annoncé commence : les joueurs discutent et donnent des indices à tour de rôle. À la première discussion, ce joueur n'est jamais Monsieur Blanc ; ensuite, c'est celui qui suit l'éliminé.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
+      <h3>Un tour de jeu</h3><p>1. Chacun saisit son prénom puis découvre secrètement son mot en maintenant le doigt sur la carte. Civils et undercover ne savent pas lequel ils sont : leur rôle n'est révélé qu'à l'élimination ou à la victoire.<br>2. Le joueur annoncé commence : les joueurs discutent et donnent des indices à tour de rôle. À la première discussion, ce joueur n'est jamais Monsieur Blanc ; ensuite, c'est celui qui suit l'éliminé.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
       <h3>Victoire</h3><p>Les civils gagnent quand tous les infiltrés sont éliminés. Les undercover gagnent quand ils sont aussi nombreux que les civils. Monsieur Blanc gagne s'il devine le mot, ou s'il reste seul face à un civil. Quand les undercover gagnent, les Monsieur Blanc encore en jeu marquent un point de complice.</p>
       <h3>Se dévoiler</h3><p>Monsieur Blanc peut, à tout moment, se dévoiler et donner le mot des civils : s'il est juste, il gagne la partie ; sinon, il est éliminé.</p>
     </div>
@@ -222,13 +239,20 @@
     <div id="recallChoose">
       <div class="kicker">Rappel confidentiel</div><h2>Qui êtes-vous ?</h2>
       <select id="recallPlayer" class="recall-select"></select>
-      <button class="primary full" id="recallRevealBtn">Afficher mon mot</button>
+      <button class="primary full" id="recallRevealBtn">Continuer</button>
     </div>
     <div id="recallSecret" class="hidden center">
-      <img class="role-art hidden" id="recallRoleImage" src="images/role-blank.webp" alt="">
-      <div class="role-label" id="recallRole">VOTRE MOT</div>
-      <div class="secret-word" id="recallWord">MOT</div>
-      <button class="secondary full" id="recallHideBtn">Masquer</button>
+      <div class="flip" id="recallCard" role="button" tabindex="0" aria-pressed="false" aria-label="Voir mon mot">
+        <div class="flip-inner">
+          <div class="flip-face flip-front"><div class="hold-icon" aria-hidden="true"></div><b class="holdLabel">Maintenir pour voir mon mot</b><small>Relâchez pour le masquer</small></div>
+          <div class="flip-face flip-back">
+            <img class="role-art hidden" id="recallRoleImage" src="images/role-blank.webp" alt="">
+            <div class="role-label" id="recallRole">VOTRE MOT</div>
+            <div class="secret-word" id="recallWord">MOT</div>
+          </div>
+        </div>
+      </div>
+      <button class="secondary full" id="recallHideBtn">Fermer</button>
     </div>
   </div>
 </div>
@@ -246,7 +270,8 @@
   </div>
 </div>
 
+<canvas id="confetti" class="confetti" aria-hidden="true"></canvas>
 <div id="toast" class="toast" role="status"></div>
-<script src="js/version.js"></script><script src="js/words.js"></script><script src="js/storage.js"></script><script src="js/game.js"></script><script src="js/app.js"></script>
+<script src="js/version.js"></script><script src="js/players.js"></script><script src="js/words.js"></script><script src="js/storage.js"></script><script src="js/game.js"></script><script src="js/app.js"></script>
 </body>
 </html>

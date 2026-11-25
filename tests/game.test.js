@@ -1,6 +1,7 @@
 const fs=require('fs'),vm=require('vm'),assert=require('assert');
 const ctx={window:{},crypto:require('crypto').webcrypto};vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(__dirname+'/../js/game.js','utf8'),ctx);
+vm.runInContext(fs.readFileSync(__dirname+'/../js/players.js','utf8'),ctx);
 const G=ctx.window.UndercoverGame;
 const pairs=[{civil:'Chien',undercover:'Chat'}];
 const mk=(n,u,b)=>{const g=new G();g.start(Array.from({length:n},(_,i)=>'J'+i),u,b,pairs);return g};
@@ -84,4 +85,17 @@ for(let i=0;i<N;i++){const t=new G();t.start(['A','B','C','D'],1,1,pairs,{lazyRo
 seat.forEach(c=>assert.ok(Math.abs(c/N-0.25)<0.02,'place biaisée : '+seat));
 // 1er tour : jamais M. Blanc
 for(let i=0;i<2000;i++){const t=new G();t.start(['A','B','C','D'],1,1,pairs,{lazyRoles:true});t.state.players.forEach(p=>t.drawRole(p.id));t.pickStarter();assert.notEqual(t.state.players.find(p=>p.id===t.state.starterId).role,'blank')}
+
+// pseudos récents et groupes
+const P=ctx.window.Players;
+let rec=[];['Alex','camille','  Léo ','ALEX'].forEach(n=>rec=P.addRecent(rec,n));
+assert.deepEqual(rec,['ALEX','Léo','camille']);
+let sg=P.suggest({recent:rec,taken:['léo'],query:'',max:8});assert.deepEqual(sg,['ALEX','camille']);
+assert.deepEqual(P.suggest({recent:rec,query:'ca'}),['camille']);
+assert.deepEqual(P.suggest({recent:rec,members:['Léo','alex'],query:''}),['Léo','alex']);
+let grs=P.saveGroup([],'Famille',['A','B','C']);assert.equal(grs.length,1);
+grs=P.saveGroup(grs,'famille',['A','B','C','D']);assert.equal(grs.length,1);assert.equal(grs[0].members.length,4);
+assert.equal(P.saveGroup(grs,'Duo',['A','B']).length,1);
+assert.equal(P.removeGroup(grs,grs[0].id).length,0);assert.deepEqual(P.removeName(rec,'léo'),['ALEX','camille']);
+const manyN=Array.from({length:40},(_,i)=>'N'+i).reduce((a,n)=>P.addRecent(a,n),[]);assert.equal(manyN.length,30);
 console.log('OK — attribution, victoire, égalités vides, devinette, scores, manches');

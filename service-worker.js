@@ -1,6 +1,6 @@
 importScripts('./js/version.js');
 const CACHE='monsieur-blanc-'+APP_VERSION;
-const ASSETS=['./','./index.html','./manifest.json','./css/style.css','./js/version.js','./js/words.js','./js/storage.js','./js/game.js','./js/app.js','./icons/icon-192.png','./icons/icon-512.png','./images/role-blank.webp','./images/role-civil.webp','./images/role-undercover.webp','./images/home-dog.webp'];
+const ASSETS=['./','./index.html','./manifest.json','./css/style.css','./js/version.js','./js/players.js','./js/words.js','./js/storage.js','./js/game.js','./js/app.js','./icons/icon-192.png','./icons/icon-512.png','./images/role-blank.webp','./images/role-civil.webp','./images/role-undercover.webp','./images/home-dog.webp'];
 
 self.addEventListener('install',e=>{
   // cache:'reload' : on récupère les fichiers sur le serveur, jamais dans le cache HTTP du navigateur

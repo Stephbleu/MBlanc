@@ -2,9 +2,11 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const game=new UndercoverGame();
 
 let pairs=[...window.DEFAULT_WORD_PAIRS], custom=[];
-let settings={points:{civil:2,undercover:3,blank:4,accomplice:1},animations:true};
+let settings={points:{civil:2,undercover:3,blank:4,accomplice:1},animations:true,hold:true,vibration:true};
+let people={recent:[],groups:[]};
+let dealHold,recallHold,dealSeen=false;
 let randStats={seats:{},blank:{}};
-const setup={players:4,undercover:1,blank:1,difficulty:'all',categories:new Set()};
+const setup={players:4,undercover:1,blank:1,group:null,difficulty:'all',categories:new Set()};
 const ui={screen:'home',dealIndex:0,voterIndex:0,revoteTargets:null};
 let toastTimer=null, installPrompt=null, pendingSession=null, reloadWhenHome=false;
 const GAME_SCREENS=new Set(['dealScreen','playScreen','voteScreen','resultScreen','revealScreen','victoryScreen','scoreScreen']);
@@ -101,6 +103,7 @@ function startGame(){
     game.start(names,setup.undercover,setup.blank,activePairs(),{
       reveal:$('#revealRole').checked,blankGuess:$('#blankGuess').checked,tieRevote:$('#tieRevote').checked,lazyRoles:true
     });
+    game.state.groupId=setup.group;
     ui.dealIndex=0;ui.voterIndex=0;ui.revoteTargets=null;pendingSession=null;
     show('dealScreen');showDeal();
   }catch(e){$('#setupError').textContent=e.message}
@@ -108,18 +111,21 @@ function startGame(){
 
 /* ---------- distribution ---------- */
 function showDeal(){
-  const s=game.state,p=s.players[ui.dealIndex];
-  const naming=s.needNames;
-  $('#dealWho').textContent=naming?`JOUEUR ${ui.dealIndex+1} SUR ${s.players.length}`:"C'EST AU TOUR DE";
+  const s=game.state,p=s.players[ui.dealIndex],n=s.players.length;
+  const naming=s.needNames&&!p.role;      // pseudo à saisir (1re manche) tant que le rôle n'est pas tiré
+  dealHold.hide();dealSeen=false;
+  $('#dealWho').textContent=naming?`JOUEUR ${ui.dealIndex+1} SUR ${n}`:"C'EST AU TOUR DE";
   $('#dealPlayer').textContent=p.name;
   $('#dealPlayer').classList.toggle('hidden',naming);
   $('#nameInput').classList.toggle('hidden',!naming);
   $('#nameInput').value='';$('#nameError').textContent='';
-  $('#revealBtn').textContent=naming?'Valider et découvrir mon mot':'Découvrir mon mot';
-  $('#dealIntro').innerHTML=naming?'Entrez votre prénom, puis découvrez votre mot.<br>Personne d\'autre ne regarde.':'Passez le téléphone au joueur indiqué.<br>Personne d\'autre ne regarde.';
-  $('#secretReveal').classList.add('hidden');
-  $('#revealBtn').classList.remove('hidden');
-  $('#dealProgress').style.setProperty('--progress',`${ui.dealIndex/game.state.players.length*100}%`);
+  $('#dealIntro').innerHTML=naming?'Entrez votre prénom, puis maintenez le doigt sur la carte pour voir votre mot.<br>Personne d\'autre ne regarde.':'Passez le téléphone au joueur indiqué.<br>Personne d\'autre ne regarde.';
+  $('#revealBtn').classList.toggle('hidden',!naming);
+  $('#secretReveal').classList.toggle('hidden',naming);
+  $('#hideSecretBtn').classList.add('hidden');
+  $('#hideSecretBtn').textContent=ui.dealIndex===n-1?"J'ai mémorisé — commencer la discussion":"J'ai mémorisé — joueur suivant";
+  renderSuggest();
+  $('#dealProgress').style.setProperty('--progress',`${ui.dealIndex/n*100}%`);
 }
 /* Civils et undercover ne voient que leur mot : ils ignorent leur rôle. Seul Monsieur Blanc sait qu'il l'est (il n'a pas de mot). */
 function fillSecret(p,ids){
@@ -129,31 +135,117 @@ function fillSecret(p,ids){
   $(ids.role).textContent=blank?'MONSIEUR BLANC':'VOTRE MOT';
   $(ids.word).textContent=blank?'AUCUN MOT':p.word;
 }
-function reveal(){
+/* 1re manche : validation du pseudo → le rôle est tiré maintenant dans le paquet caché */
+function validateName(){
   const s=game.state,p=s.players[ui.dealIndex];
-  if(s.needNames){
-    const name=$('#nameInput').value.trim().replace(/\s+/g,' ');
-    const taken=s.players.slice(0,ui.dealIndex).some(q=>q.name.toLocaleLowerCase('fr')===name.toLocaleLowerCase('fr'));
-    if(!name){$('#nameError').textContent='Saisissez votre prénom.';return}
-    if(taken){$('#nameError').textContent='Ce prénom est déjà pris.';return}
-    p.name=name;$('#dealPlayer').textContent=name;
-    $('#nameInput').classList.add('hidden');$('#dealPlayer').classList.remove('hidden');$('#nameError').textContent='';
-    $('#dealWho').textContent='BIENVENUE';
-  }
-  const fresh=!p.role;
-  game.drawRole(p.id);                       // le rôle est tiré maintenant, dans le paquet caché
-  if(fresh)recordDraw(ui.dealIndex,p.role==='blank');
-  $('#revealBtn').classList.add('hidden');$('#secretReveal').classList.remove('hidden');
+  if(!s.needNames||p.role)return;
+  const name=Players.clean($('#nameInput').value);
+  const taken=s.players.slice(0,ui.dealIndex).some(q=>Players.key(q.name)===Players.key(name));
+  if(!name){$('#nameError').textContent='Saisissez votre prénom.';return}
+  if(taken){$('#nameError').textContent='Ce prénom est déjà pris.';return}
+  p.name=name;people.recent=Players.addRecent(people.recent,name);persistPeople();
+  game.drawRole(p.id);recordDraw(ui.dealIndex,p.role==='blank');
+  $('#dealPlayer').textContent=name;$('#dealPlayer').classList.remove('hidden');
+  $('#nameInput').classList.add('hidden');$('#nameError').textContent='';
+  $('#nameSuggest').classList.add('hidden');$('#revealBtn').classList.add('hidden');
+  $('#dealWho').textContent='BIENVENUE';
+  $('#dealIntro').innerHTML='Maintenez le doigt sur la carte pour voir votre mot.<br>Personne d\'autre ne regarde.';
+  $('#secretReveal').classList.remove('hidden');
+  saveSession();
+}
+/* carte tenue pressée : le mot est visible */
+function dealShow(){
+  const s=game.state,p=s.players[ui.dealIndex];
+  if(!p.role){game.drawRole(p.id);recordDraw(ui.dealIndex,p.role==='blank');saveSession()}   // manches suivantes
   fillSecret(p,{img:'#secretRoleImage',role:'#secretRole',word:'#secretWord'});
   $('#secretHint').textContent=p.role==='blank'
     ?'Improvisez : vous ne connaissez pas le mot des autres.'
-    :'Mémorisez votre mot et ne le montrez à personne. Votre rôle vous sera révélé plus tard.';
-  saveSession();
+    :'Mémorisez votre mot. Votre rôle vous sera révélé plus tard.';
+  if(!dealSeen){dealSeen=true;$('#hideSecretBtn').classList.remove('hidden');vibrate(25)}
 }
 function hideSecret(){
+  dealHold.hide();
   ui.dealIndex++;
   if(ui.dealIndex>=game.state.players.length){game.state.needNames=false;game.pickStarter();show('playScreen');renderPlay()}
   else{saveSession();showDeal()}
+}
+
+/* ---------- carte à maintenir (appui long) ---------- */
+const holdHiders=[];
+function bindHold(card,onShow){
+  let on=false;
+  const hide=()=>{if(!on)return;on=false;card.classList.remove('show');card.setAttribute('aria-pressed','false')};
+  const show=()=>{if(on)return;on=true;onShow();card.classList.add('show');card.setAttribute('aria-pressed','true')};
+  holdHiders.push(hide);
+  card.addEventListener('pointerdown',e=>{if(!settings.hold)return;e.preventDefault();try{card.setPointerCapture(e.pointerId)}catch{}show()});
+  ['pointerup','pointercancel','lostpointercapture'].forEach(t=>card.addEventListener(t,()=>{if(settings.hold)hide()}));
+  card.addEventListener('click',()=>{if(!settings.hold){on?hide():show()}});            // mode « toucher »
+  card.addEventListener('keydown',e=>{
+    if(e.key!==' '&&e.key!=='Enter')return;e.preventDefault();if(e.repeat)return;
+    if(settings.hold)show();else{on?hide():show()}
+  });
+  card.addEventListener('keyup',e=>{if((e.key===' '||e.key==='Enter')&&settings.hold)hide()});
+  card.addEventListener('contextmenu',e=>e.preventDefault());
+  return{show,hide};
+}
+document.addEventListener('visibilitychange',()=>{if(document.hidden)holdHiders.forEach(h=>h())});
+window.addEventListener('blur',()=>holdHiders.forEach(h=>h()));
+function applyHoldMode(){
+  $$('.holdLabel').forEach(e=>{e.textContent=settings.hold?'Maintenir pour voir mon mot':'Toucher pour voir mon mot';e.nextElementSibling.textContent=settings.hold?'Relâchez pour le masquer':'Touchez de nouveau pour le masquer'});
+}
+
+/* ---------- retours : vibrations, animations, confettis ---------- */
+function vibrate(p){if(settings.vibration&&navigator.vibrate){try{navigator.vibrate(p)}catch{}}}
+function animOK(){return settings.animations&&!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)}
+function replay(el){el.classList.remove('pop');void el.offsetWidth;if(animOK())el.classList.add('pop')}
+function launchConfetti(){
+  if(!animOK())return;
+  const cv=$('#confetti'),ctx=cv.getContext('2d'),dpr=window.devicePixelRatio||1;
+  cv.width=innerWidth*dpr;cv.height=innerHeight*dpr;
+  const cols=['#e34d59','#24252a','#f1b7bd','#a3a5ac'];
+  const ps=Array.from({length:90},()=>({x:Math.random()*cv.width,y:-Math.random()*cv.height*.4,w:(6+Math.random()*6)*dpr,h:(10+Math.random()*8)*dpr,vx:(Math.random()-.5)*2*dpr,vy:(2+Math.random()*3)*dpr,r:Math.random()*6,vr:(Math.random()-.5)*.3,c:cols[Math.floor(Math.random()*cols.length)]}));
+  const t0=performance.now();
+  (function frame(t){
+    const k=t-t0;ctx.clearRect(0,0,cv.width,cv.height);
+    ps.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=.05*dpr;p.r+=p.vr;ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.r);ctx.fillStyle=p.c;ctx.globalAlpha=Math.min(1,Math.max(0,1-(k-1400)/700));ctx.fillRect(-p.w/2,-p.h/2,p.w,p.h);ctx.restore()});
+    if(k<2100)requestAnimationFrame(frame);else ctx.clearRect(0,0,cv.width,cv.height);
+  })(t0);
+}
+
+/* ---------- pseudos récents et groupes ---------- */
+function persistPeople(){Store.put('settings','people',people).catch(()=>{})}
+function renderSuggest(){
+  const s=game.state,box=$('#nameSuggest');
+  const p=s&&s.players[ui.dealIndex];
+  if(!s||!s.needNames||!p||p.role){box.classList.add('hidden');return}
+  const g=s.groupId&&people.groups.find(x=>x.id===s.groupId);
+  const list=Players.suggest({recent:people.recent,members:g?g.members:null,taken:s.players.slice(0,ui.dealIndex).map(q=>q.name),query:$('#nameInput').value,max:8});
+  box.innerHTML=list.map(n=>`<button class="chip" data-name="${esc(n)}">${esc(n)}</button>`).join('');
+  box.classList.toggle('hidden',!list.length);
+}
+function renderGroups(){
+  const box=$('#groupChoices');
+  box.classList.toggle('hidden',!people.groups.length);
+  box.innerHTML=people.groups.map(g=>`<button class="chip group ${setup.group===g.id?'selected':''}" data-group="${esc(g.id)}" aria-pressed="${setup.group===g.id}">${esc(g.name)} · ${g.members.length}</button>`).join('');
+}
+function selectGroup(id){
+  if(setup.group===id){setup.group=null}
+  else{setup.group=id;const g=people.groups.find(x=>x.id===id);if(g){setup.players=Math.max(3,Math.min(20,g.members.length));changePlayers(0)}}
+  renderGroups();updateSetup();
+}
+function renderPlayersManage(){
+  const g=people.groups.map(x=>`<div class="manage-row"><span>${esc(x.name)} · ${x.members.length} joueurs</span><button data-del-group="${esc(x.id)}">Supprimer</button></div>`).join('');
+  const r=people.recent.map(n=>`<button class="chip-del" data-del-name="${esc(n)}">${esc(n)}<span>×</span></button>`).join('');
+  $('#playersManage').innerHTML=`<div class="manage-title">Groupes</div>${g||'<p class="muted">Aucun groupe enregistré. Vous pourrez en créer un depuis le classement final.</p>'}
+    <div class="manage-title">Pseudos récents</div>${r?`<div class="chips">${r}</div>`:'<p class="muted">Aucun pseudo enregistré.</p>'}
+    ${(g||r)?'<button class="text-btn full" id="clearPeopleBtn">Tout effacer</button>':''}`;
+}
+function saveGroup(){
+  const name=$('#groupName').value;
+  if(!Players.clean(name)){toast('Donnez un nom au groupe.');return}
+  people.groups=Players.saveGroup(people.groups,name,game.state.players.map(p=>p.name));
+  persistPeople();renderGroups();renderPlayersManage();
+  $('#groupForm').classList.add('hidden');$('#groupName').value='';toast('Groupe enregistré.');
 }
 
 /* ---------- discussion ---------- */
@@ -233,7 +325,7 @@ function showResults(){
 /* ---------- élimination ---------- */
 function eliminate(){
   const id=$('#eliminateBtn').dataset.id;if(!id)return;
-  game.eliminate(id);renderEliminated();show('revealScreen');
+  game.eliminate(id);renderEliminated();show('revealScreen');vibrate(200);
 }
 function renderEliminated(){
   const s=game.state,p=s.eliminated,o=s.options;
@@ -246,6 +338,7 @@ function renderEliminated(){
   $('#guessPanel').classList.toggle('hidden',!guess);
   $('#continueBtn').classList.toggle('hidden',guess);
   $('#guessInput').value='';
+  replay($('#eliminatedRoleImage'));replay($('#eliminatedRole'));
 }
 function submitGuess(){
   const s=game.state,p=s.eliminated;
@@ -270,6 +363,7 @@ function finishRound(winner,detail){
   game.award(winner,settings.points);
   game.state.outcome={winner,detail};
   renderVictory();show('victoryScreen');
+  vibrate([60,50,60,50,140]);launchConfetti();
 }
 function renderVictory(){
   const s=game.state,w=s.outcome?.winner||s.winner,detail=s.outcome?.detail||'';
@@ -305,6 +399,7 @@ function nextRound(){
 function endGame(){
   const s=game.state;
   clearSession();   // la partie est terminée : plus de bouton « Reprendre »
+  $('#groupForm').classList.add('hidden');
   $('#finalSummary').textContent=`${s.round} manche${s.round>1?'s':''} jouée${s.round>1?'s':''}.`;
   $('#finalRanking').innerHTML=s.players.slice().sort((a,b)=>b.score-a.score).map((p,i)=>
     `<div class="rank-item ${i===0?'first':''}"><div class="rank-num">${i===0?'♛':i+1}</div><b>${esc(p.name)}</b><div class="rank-score">${p.score}</div></div>`).join('');
@@ -313,7 +408,7 @@ function endGame(){
 function resetAndNew(){
   if(!confirm('Nouvelle partie : les scores de la partie actuelle seront remis à zéro. Continuer ?'))return;
   game.state=null;clearSession();
-  setup.players=4;setup.undercover=1;setup.blank=1;
+  setup.players=4;setup.undercover=1;setup.blank=1;setup.group=null;renderGroups();
   $('#setupError').textContent='';updateSetup();show('setupScreen');
 }
 function leaveGame(){saveSession();Store.get('session','current').then(s=>{pendingSession=s||null;updateHome()}).catch(()=>{});show('homeScreen')}
@@ -383,12 +478,12 @@ async function importWords(file){
 function applySettings(){document.body.classList.toggle('no-anim',!settings.animations)}
 function fillSettings(){
   $('#pointsAccomplice').value=settings.points.accomplice;$('#pointsCivil').value=settings.points.civil;$('#pointsUndercover').value=settings.points.undercover;$('#pointsBlank').value=settings.points.blank;
-  $('#animationsEnabled').checked=settings.animations;
+  $('#animationsEnabled').checked=settings.animations;$('#holdEnabled').checked=settings.hold;$('#vibrationEnabled').checked=settings.vibration;
 }
 async function saveSettings(){
   const pts=v=>Math.max(0,Math.min(20,Math.round(Number(v)||0)));
-  settings={points:{civil:pts($('#pointsCivil').value),undercover:pts($('#pointsUndercover').value),blank:pts($('#pointsBlank').value),accomplice:pts($('#pointsAccomplice').value)},animations:$('#animationsEnabled').checked};
-  fillSettings();applySettings();
+  settings={points:{civil:pts($('#pointsCivil').value),undercover:pts($('#pointsUndercover').value),blank:pts($('#pointsBlank').value),accomplice:pts($('#pointsAccomplice').value)},animations:$('#animationsEnabled').checked,hold:$('#holdEnabled').checked,vibration:$('#vibrationEnabled').checked};
+  fillSettings();applySettings();applyHoldMode();
   try{await Store.put('settings','main',settings);toast('Réglages enregistrés.')}catch{toast('Enregistrement impossible.')}
 }
 
@@ -401,10 +496,14 @@ function openRecall(){
 function showRecallSecret(){
   const id=$('#recallPlayer').value;if(!id){toast('Choisissez votre prénom.');return}
   const p=game.state.players.find(x=>x.id===id);if(!p)return;
-  fillSecret(p,{img:'#recallRoleImage',role:'#recallRole',word:'#recallWord'});
   $('#recallChoose').classList.add('hidden');$('#recallSecret').classList.remove('hidden');
 }
+function recallShow(){
+  const p=game.state.players.find(x=>x.id===$('#recallPlayer').value);if(!p)return;
+  fillSecret(p,{img:'#recallRoleImage',role:'#recallRole',word:'#recallWord'});
+}
 function closeRecall(){
+  if(recallHold)recallHold.hide();
   $('#roleRecall').classList.add('hidden');
   $('#recallSecret').classList.add('hidden');$('#recallChoose').classList.remove('hidden');
 }
@@ -424,7 +523,7 @@ function submitBlank(){
   if(r.status==='invalid'){$('#blankError').textContent='Action impossible pour ce joueur.';return}
   closeBlankModal();
   if(r.status==='win'){finishRound('blank',`${r.player.name} s'est dévoilé et a trouvé le mot des civils !`);return}
-  ui.revoteTargets=null;renderEliminated();show('revealScreen');
+  ui.revoteTargets=null;renderEliminated();show('revealScreen');vibrate(200);
   toast('Mauvais mot : Monsieur Blanc est éliminé.');
 }
 
@@ -461,12 +560,28 @@ $('#resumeBtn').onclick=resumeGame;
 $('#installBtn').onclick=installApp;
 $('#homeRules').onclick=()=>show('rulesScreen');
 $('#homeLibrary').onclick=()=>{stats();show('libraryScreen')};
-$('#homeSettings').onclick=()=>{fillSettings();renderRandStats();show('settingsScreen')};
+$('#homeSettings').onclick=()=>{fillSettings();renderRandStats();renderPlayersManage();show('settingsScreen')};
 $('#openLibraryFromSettings').onclick=()=>{stats();show('libraryScreen')};
 $('#rulesBtn').onclick=()=>show('rulesScreen');
 $$('[data-home]').forEach(b=>b.onclick=()=>show('homeScreen'));
 $$('[data-players]').forEach(b=>b.onclick=()=>changePlayers(Number(b.dataset.players)));
-$('#nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')reveal()});
+$('#nameInput').addEventListener('keydown',e=>{if(e.key==='Enter')validateName()});
+$('#nameInput').addEventListener('input',renderSuggest);
+$('#nameSuggest').onclick=e=>{const b=e.target.closest('[data-name]');if(b){$('#nameInput').value=b.dataset.name;renderSuggest();$('#nameInput').focus()}};
+$('#groupChoices').onclick=e=>{const b=e.target.closest('[data-group]');if(b)selectGroup(b.dataset.group)};
+$('#saveGroupBtn').onclick=()=>{$('#groupForm').classList.toggle('hidden');$('#groupName').focus()};
+$('#groupSaveOk').onclick=saveGroup;
+$('#groupName').addEventListener('keydown',e=>{if(e.key==='Enter')saveGroup()});
+$('#playersManage').onclick=e=>{
+  const g=e.target.closest('[data-del-group]'),n=e.target.closest('[data-del-name]');
+  if(g){people.groups=Players.removeGroup(people.groups,g.dataset.delGroup);if(setup.group===g.dataset.delGroup)setup.group=null}
+  else if(n){people.recent=Players.removeName(people.recent,n.dataset.delName)}
+  else if(e.target.id==='clearPeopleBtn'){if(!confirm('Effacer tous les pseudos et groupes enregistrés ?'))return;people={recent:[],groups:[]};setup.group=null}
+  else return;
+  persistPeople();renderPlayersManage();renderGroups();
+};
+dealHold=bindHold($('#dealCard'),dealShow);
+recallHold=bindHold($('#recallCard'),recallShow);
 $('#seeScoresBtn').onclick=()=>{renderOutcome();show('scoreScreen')};
 $$('[data-counter]').forEach(b=>b.onclick=()=>changeCounter(b.dataset.counter,Number(b.dataset.delta)));
 $$('[data-difficulty]').forEach(b=>b.onclick=()=>{$$('[data-difficulty]').forEach(x=>x.classList.remove('selected'));b.classList.add('selected');setup.difficulty=b.dataset.difficulty;updateSetup()});
@@ -478,7 +593,7 @@ $('#categoryChoices').onclick=e=>{
 };
 $('#blankGuess').onchange=syncRuleToggles;
 $('#startGameBtn').onclick=startGame;
-$('#revealBtn').onclick=reveal;
+$('#revealBtn').onclick=validateName;
 $('#hideSecretBtn').onclick=hideSecret;
 $('#goVoteBtn').onclick=()=>beginVoting();
 $('#leaveGameBtn').onclick=leaveGame;
@@ -519,12 +634,13 @@ async function load(){
   try{
     custom=(await Store.get('customPairs','all'))||[];
     const rs=await Store.get('settings','randStats');if(rs&&rs.seats)randStats=rs;
+    const pp=await Store.get('settings','people');if(pp&&Array.isArray(pp.recent))people={recent:pp.recent,groups:Array.isArray(pp.groups)?pp.groups:[]};
     const saved=await Store.get('settings','main');
     if(saved)settings={...settings,...saved,points:{...settings.points,...(saved.points||{})}};
     const s=await Store.get('session','current');
     if(s&&s.state&&s.state.players&&s.ui)pendingSession=s;
   }catch(e){toast('Stockage local indisponible.')}
-  fillSettings();applySettings();renderCategories();syncRuleToggles();updateSetup();stats();updateHome();renderRandStats();
+  fillSettings();applySettings();renderCategories();syncRuleToggles();updateSetup();stats();updateHome();renderRandStats();renderGroups();renderPlayersManage();applyHoldMode();
   $('#versionLine').textContent='Version '+APP_VERSION;
 }
 updateInstallVisibility();

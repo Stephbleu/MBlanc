@@ -39,3 +39,10 @@ Déposez le contenu à la racine du dépôt, Settings → Pages → branche `mai
 
 ## Si un appareil montre encore une ancienne version
 Réglages → numéro de version en bas. S'il n'est pas « 3.3.0 » : Chrome → ⋮ → Paramètres → Paramètres des sites → Stockage → rechercher l'adresse du jeu → Effacer les données (les paires personnelles sont perdues), puis rouvrir la page deux fois. Pour l'app installée : la rouvrir en ligne, ou la désinstaller puis la réinstaller.
+
+
+## Version 3.4.0
+- **Appui long pour voir son mot** : le mot (et l'illustration de Monsieur Blanc) n'apparaît que tant que le doigt reste sur la carte ; il se masque au relâchement ou si l'application passe en arrière-plan. Même principe dans « J'ai oublié mon mot ». Réglage « Appui long pour voir le mot » (désactivé = toucher pour afficher / masquer).
+- **Retours tactiles et animations** : vibrations (premier affichage du mot, élimination, victoire — réglage « Vibrations », non disponible sur iPhone), retournement de carte, zoom du rôle à l'élimination, confettis sobres à chaque victoire. Tout dépend du réglage « Animations » et de `prefers-reduced-motion`.
+- **Mémoire des joueurs** : pseudos enregistrés sur l'appareil (30 max) et proposés à la saisie ; groupes enregistrables depuis le classement final, sélectionnables à la composition ; gestion dans Réglages › Joueurs et groupes. Tout reste local.
+- 1re manche : le pseudo est validé d'abord, le rôle est tiré à cet instant.
