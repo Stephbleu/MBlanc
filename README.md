@@ -1,6 +1,15 @@
-# MONSIEUR BLANC — V3.2
+# MONSIEUR BLANC — V3.3
 
 Jeu Undercover local, installable comme PWA (Android, tablette, ordinateur). Un seul téléphone, sans compte ni serveur.
+
+## Nouveautés de la v3.3
+- **M. Blanc complice** : quand les undercover gagnent, chaque Monsieur Blanc encore en jeu marque 1 point (réglable).
+- **Se dévoiler** : Monsieur Blanc peut, à tout moment (discussion ou vote), donner le mot des civils. Bon mot : il gagne. Mauvais mot : il est éliminé.
+- **Chronomètre supprimé.** Le joueur qui commence s'affiche en grand : tiré au sort hors M. Blanc au premier tour, puis celui qui suit l'éliminé.
+- **Composition publique** : « Parmi vous : 1 undercover et 1 Monsieur Blanc ».
+- **Rôles tirés à la validation de chaque pseudo**, dans un paquet caché, avec l'aléa cryptographique du navigateur ; contrôle du hasard dans Réglages.
+- **« Reprendre la partie »** n'apparaît plus une fois la partie terminée.
+- **Mises à jour fiables** : le service worker charge toujours la dernière version quand on est en ligne (le cache ne sert que hors ligne) et recharge l'app à l'accueil quand une nouvelle version est publiée. Le numéro de version est dans Réglages (`js/version.js`).
 
 ## Nouveautés de la v3.2
 - **1 000 paires de mots** (500 nouvelles, sans aucun mot en commun avec les anciennes), 25 catégories × 40 paires.
@@ -23,7 +32,10 @@ Jeu Undercover local, installable comme PWA (Android, tablette, ordinateur). Un 
 **Apparence** — tous les écrans reprennent le style de l'accueil : fond blanc, sans cadres, boutons sombres, une touche de rouge.
 
 ## Publication GitHub Pages
-Déposez le contenu à la racine du dépôt, Settings → Pages → branche `main`, dossier `/ (root)`. Le cache est passé à `monsieur-blanc-v5` : les données locales sont conservées.
+Déposez le contenu à la racine du dépôt, Settings → Pages → branche `main`, dossier `/ (root)`. Le cache porte le numéro de version (`monsieur-blanc-3.3.0`) : les données locales sont conservées.
 
 ## Tests
 `node tests/game.test.js`
+
+## Si un appareil montre encore une ancienne version
+Réglages → numéro de version en bas. S'il n'est pas « 3.3.0 » : Chrome → ⋮ → Paramètres → Paramètres des sites → Stockage → rechercher l'adresse du jeu → Effacer les données (les paires personnelles sont perdues), puis rouvrir la page deux fois. Pour l'app installée : la rouvrir en ligne, ou la désinstaller puis la réinstaller.

@@ -2,12 +2,12 @@ const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const game=new UndercoverGame();
 
 let pairs=[...window.DEFAULT_WORD_PAIRS], custom=[];
-let settings={points:{civil:2,undercover:3,blank:4},animations:true};
+let settings={points:{civil:2,undercover:3,blank:4,accomplice:1},animations:true};
+let randStats={seats:{},blank:{}};
 const setup={players:4,undercover:1,blank:1,difficulty:'all',categories:new Set()};
 const ui={screen:'home',dealIndex:0,voterIndex:0,revoteTargets:null};
-const TIMER_START=120;
-let timerSeconds=TIMER_START, timer=null, toastTimer=null, installPrompt=null, pendingSession=null;
-const GAME_SCREENS=new Set(['dealScreen','playScreen','voteScreen','resultScreen','revealScreen','victoryScreen','scoreScreen','finalScreen']);
+let toastTimer=null, installPrompt=null, pendingSession=null, reloadWhenHome=false;
+const GAME_SCREENS=new Set(['dealScreen','playScreen','voteScreen','resultScreen','revealScreen','victoryScreen','scoreScreen']);
 
 /* ---------- utilitaires ---------- */
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
@@ -16,6 +16,7 @@ function show(id){
   $('#'+id).classList.add('active');
   if(GAME_SCREENS.has(id)){ui.screen=id;saveSession()}
   window.scrollTo({top:0,behavior:'auto'});
+  if(id==='homeScreen'&&reloadWhenHome)location.reload();
 }
 function toast(msg){
   const t=$('#toast');t.textContent=msg;t.classList.add('show');
@@ -52,7 +53,6 @@ function resumeGame(){
     case 'revealScreen':renderEliminated();show('revealScreen');break;
     case 'victoryScreen':renderVictory();show('victoryScreen');break;
     case 'scoreScreen':renderOutcome();show('scoreScreen');break;
-    case 'finalScreen':endGame();break;
     default:renderPlay();show('playScreen');
   }
 }
@@ -99,7 +99,7 @@ function startGame(){
   const names=Array.from({length:setup.players},(_,i)=>`Joueur ${i+1}`);
   try{
     game.start(names,setup.undercover,setup.blank,activePairs(),{
-      reveal:$('#revealRole').checked,blankGuess:$('#blankGuess').checked,tieRevote:$('#tieRevote').checked
+      reveal:$('#revealRole').checked,blankGuess:$('#blankGuess').checked,tieRevote:$('#tieRevote').checked,lazyRoles:true
     });
     ui.dealIndex=0;ui.voterIndex=0;ui.revoteTargets=null;pendingSession=null;
     show('dealScreen');showDeal();
@@ -140,6 +140,9 @@ function reveal(){
     $('#nameInput').classList.add('hidden');$('#dealPlayer').classList.remove('hidden');$('#nameError').textContent='';
     $('#dealWho').textContent='BIENVENUE';
   }
+  const fresh=!p.role;
+  game.drawRole(p.id);                       // le rôle est tiré maintenant, dans le paquet caché
+  if(fresh)recordDraw(ui.dealIndex,p.role==='blank');
   $('#revealBtn').classList.add('hidden');$('#secretReveal').classList.remove('hidden');
   fillSecret(p,{img:'#secretRoleImage',role:'#secretRole',word:'#secretWord'});
   $('#secretHint').textContent=p.role==='blank'
@@ -149,41 +152,37 @@ function reveal(){
 }
 function hideSecret(){
   ui.dealIndex++;
-  if(ui.dealIndex>=game.state.players.length){game.state.needNames=false;show('playScreen');renderPlay()}
+  if(ui.dealIndex>=game.state.players.length){game.state.needNames=false;game.pickStarter();show('playScreen');renderPlay()}
   else{saveSession();showDeal()}
 }
 
 /* ---------- discussion ---------- */
-function clearTimer(){if(timer){clearInterval(timer);timer=null}}
-function timerLabel(){return timer?'Pause':timerSeconds===0?'Relancer':timerSeconds<TIMER_START?'Reprendre':'Démarrer'}
-function renderTimer(){
-  const m=String(Math.floor(timerSeconds/60)).padStart(2,'0'),s=String(timerSeconds%60).padStart(2,'0');
-  $('#timerText').textContent=`${m}:${s}`;$('#timerBtn').textContent=timerLabel();
+function plural(n,one,many){return `${n} ${n>1?many:one}`}
+function compositionText(){
+  const s=game.state,src=s.options.reveal
+    ?{undercover:game.active().filter(p=>p.role==='undercover').length,blank:game.active().filter(p=>p.role==='blank').length}
+    :s.composition;
+  const parts=[];
+  if(src.undercover)parts.push(plural(src.undercover,'undercover','undercover'));
+  if(src.blank)parts.push(plural(src.blank,'Monsieur Blanc','Messieurs Blanc'));
+  return parts.length?`Parmi vous : ${parts.join(' et ')}.`:'Plus aucun infiltré.';
+}
+function updateBlankButtons(){
+  const s=game.state,on=!!(s&&s.options.blankGuess&&game.active().some(p=>p.role==='blank'));
+  ['#blankOpenBtn','#blankOpenVoteBtn'].forEach(id=>$(id).classList.toggle('hidden',!on));
 }
 function renderPlay(){
   const s=game.state;
   $('#roundNo').textContent=s.round;
   const starter=s.players.find(p=>p.id===s.starterId);
-  $('#starterLine').innerHTML=starter?`<b>${esc(starter.name)}</b> commence.`:'';
+  $('#starterName').textContent=starter?starter.name:'—';
+  $('#compositionLine').textContent=compositionText();
   $('#playersGrid').innerHTML=s.players.map(p=>`<div class="player-tile ${p.alive?'':'out'}"><i></i>${esc(p.name)}</div>`).join('');
-  clearTimer();timerSeconds=TIMER_START;renderTimer();
-}
-function toggleTimer(){
-  if(timer){clearTimer()}
-  else{
-    if(timerSeconds===0)timerSeconds=TIMER_START;
-    timer=setInterval(()=>{
-      if(timerSeconds>0){timerSeconds--}
-      if(timerSeconds===0){clearTimer();toast('Temps écoulé !');navigator.vibrate?.(300)}
-      renderTimer();
-    },1000);
-  }
-  renderTimer();
+  updateBlankButtons();
 }
 
 /* ---------- vote ---------- */
 function beginVoting(targets=null){
-  clearTimer();
   const s=game.state;
   ui.revoteTargets=targets;s.votes={};s.drawn=null;
   s.voteOrder=game.active().map(p=>p.id);
@@ -193,7 +192,7 @@ function beginVoting(targets=null){
 function renderVote(){
   const order=game.state.voteOrder;
   if(ui.voterIndex>=order.length){showResults();return}
-  show('voteScreen');
+  show('voteScreen');updateBlankButtons();
   const voter=game.state.players.find(p=>p.id===order[ui.voterIndex]);
   $('#voteStep').textContent=`${ui.revoteTargets?'REVOTE · ':''}VOTE ${ui.voterIndex+1} / ${order.length}`;
   $('#voterName').textContent=voter.name;
@@ -262,7 +261,8 @@ function continueAfterElimination(){
     finishRound(w,w==='civil'?'Tous les infiltrés ont été éliminés.':w==='undercover'?'Les undercover ont pris le dessus.':'Monsieur Blanc est resté dans la partie jusqu\'au bout.');
     return;
   }
-  game.pickStarter();renderPlay();show('playScreen');
+  game.state.starterId=game.starterAfter(game.state.eliminated.id);   // celui qui suit l'éliminé
+  renderPlay();show('playScreen');
 }
 
 /* ---------- fin de manche ---------- */
@@ -273,12 +273,14 @@ function finishRound(winner,detail){
 }
 function renderVictory(){
   const s=game.state,w=s.outcome?.winner||s.winner,detail=s.outcome?.detail||'';
-  const winners=s.players.filter(p=>p.role===w),others=s.players.filter(p=>p.role!==w);
-  const many=winners.length>1;
+  const winners=s.players.filter(p=>p.role===w||p.accomplice),others=s.players.filter(p=>!(p.role===w||p.accomplice));
+  const many=winners.filter(p=>p.role===w).length>1;
   $('#victoryTitle').textContent=w==='civil'?(many?'Les civils gagnent':'Le civil gagne'):w==='undercover'?(many?'Les undercover gagnent':"L'undercover gagne"):(many?'Les Monsieur Blanc gagnent':'Monsieur Blanc gagne');
   $('#victoryDetail').textContent=detail;
   $('#victoryImage').src=roleImage(w);$('#victoryImage').alt='Illustration du rôle '+roleLabel(w);
-  const chip=p=>`<span class="role-chip ${p.role}">${roleLabel(p.role)}</span>`;
+  const chip=p=>p.accomplice
+    ?`<span class="role-chip blank">M. BLANC · COMPLICE${p.roundPoints?' +'+p.roundPoints:''}</span>`
+    :`<span class="role-chip ${p.role}">${roleLabel(p.role)}</span>`;
   $('#victoryWinners').innerHTML=winners.map(p=>`<div class="winner"><b>${esc(p.name)}</b>${chip(p)}</div>`).join('');
   $('#victoryOthers').innerHTML=others.length?`<div class="tiny muted">LES AUTRES</div>`+others.map(p=>`<div class="other"><span>${esc(p.name)}</span>${chip(p)}</div>`).join(''):'';
   const hasU=s.players.some(p=>p.role==='undercover');
@@ -302,6 +304,7 @@ function nextRound(){
 }
 function endGame(){
   const s=game.state;
+  clearSession();   // la partie est terminée : plus de bouton « Reprendre »
   $('#finalSummary').textContent=`${s.round} manche${s.round>1?'s':''} jouée${s.round>1?'s':''}.`;
   $('#finalRanking').innerHTML=s.players.slice().sort((a,b)=>b.score-a.score).map((p,i)=>
     `<div class="rank-item ${i===0?'first':''}"><div class="rank-num">${i===0?'♛':i+1}</div><b>${esc(p.name)}</b><div class="rank-score">${p.score}</div></div>`).join('');
@@ -313,7 +316,7 @@ function resetAndNew(){
   setup.players=4;setup.undercover=1;setup.blank=1;
   $('#setupError').textContent='';updateSetup();show('setupScreen');
 }
-function leaveGame(){clearTimer();saveSession();Store.get('session','current').then(s=>{pendingSession=s||null;updateHome()}).catch(()=>{});show('homeScreen')}
+function leaveGame(){saveSession();Store.get('session','current').then(s=>{pendingSession=s||null;updateHome()}).catch(()=>{});show('homeScreen')}
 
 /* ---------- bibliothèque ---------- */
 function stats(){
@@ -379,12 +382,12 @@ async function importWords(file){
 /* ---------- réglages ---------- */
 function applySettings(){document.body.classList.toggle('no-anim',!settings.animations)}
 function fillSettings(){
-  $('#pointsCivil').value=settings.points.civil;$('#pointsUndercover').value=settings.points.undercover;$('#pointsBlank').value=settings.points.blank;
+  $('#pointsAccomplice').value=settings.points.accomplice;$('#pointsCivil').value=settings.points.civil;$('#pointsUndercover').value=settings.points.undercover;$('#pointsBlank').value=settings.points.blank;
   $('#animationsEnabled').checked=settings.animations;
 }
 async function saveSettings(){
   const pts=v=>Math.max(0,Math.min(20,Math.round(Number(v)||0)));
-  settings={points:{civil:pts($('#pointsCivil').value),undercover:pts($('#pointsUndercover').value),blank:pts($('#pointsBlank').value)},animations:$('#animationsEnabled').checked};
+  settings={points:{civil:pts($('#pointsCivil').value),undercover:pts($('#pointsUndercover').value),blank:pts($('#pointsBlank').value),accomplice:pts($('#pointsAccomplice').value)},animations:$('#animationsEnabled').checked};
   fillSettings();applySettings();
   try{await Store.put('settings','main',settings);toast('Réglages enregistrés.')}catch{toast('Enregistrement impossible.')}
 }
@@ -406,6 +409,40 @@ function closeRecall(){
   $('#recallSecret').classList.add('hidden');$('#recallChoose').classList.remove('hidden');
 }
 
+/* ---------- Monsieur Blanc se dévoile ---------- */
+function openBlankModal(){
+  if(!game.state)return;
+  $('#blankPlayer').innerHTML='<option value="">Choisir son prénom</option>'+game.active().map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+  $('#blankWord').value='';$('#blankError').textContent='';$('#blankModal').classList.remove('hidden');
+}
+function closeBlankModal(){$('#blankModal').classList.add('hidden')}
+function submitBlank(){
+  const id=$('#blankPlayer').value,word=$('#blankWord').value;
+  if(!id){$('#blankError').textContent='Choisissez votre prénom.';return}
+  if(!word.trim()){$('#blankError').textContent='Tapez le mot des civils.';return}
+  const r=game.revealBlank(id,word);
+  if(r.status==='invalid'){$('#blankError').textContent='Action impossible pour ce joueur.';return}
+  closeBlankModal();
+  if(r.status==='win'){finishRound('blank',`${r.player.name} s'est dévoilé et a trouvé le mot des civils !`);return}
+  ui.revoteTargets=null;renderEliminated();show('revealScreen');
+  toast('Mauvais mot : Monsieur Blanc est éliminé.');
+}
+
+/* ---------- contrôle du hasard (sur cet appareil) ---------- */
+function recordDraw(seat,isBlank){
+  if(!game.state||!game.state.composition.blank)return;   // ne compte que les parties où M. Blanc existe
+  const k=String(seat+1);
+  randStats.seats[k]=(randStats.seats[k]||0)+1;
+  if(isBlank)randStats.blank[k]=(randStats.blank[k]||0)+1;
+  Store.put('settings','randStats',randStats).catch(()=>{});
+}
+function renderRandStats(){
+  const seats=Object.keys(randStats.seats).map(Number).sort((a,b)=>a-b);
+  const rows=seats.map(k=>{const n=randStats.seats[k],b=randStats.blank[k]||0;
+    return `<tr><td>${k===1?'1er':k+'e'} joueur</td><td>${n}</td><td>${b}</td><td>${Math.round(b/n*100)} %</td></tr>`}).join('');
+  $('#randStats').innerHTML=`<thead><tr><th>Place</th><th>Tirages</th><th>M. Blanc</th><th>Part</th></tr></thead><tbody>${rows||'<tr><td colspan="4">Pas encore de données.</td></tr>'}</tbody>`;
+}
+
 /* ---------- installation PWA ---------- */
 const isInstalled=()=>window.matchMedia('(display-mode: standalone)').matches||window.navigator.standalone===true;
 function updateInstallVisibility(){$('#installBtn').classList.toggle('hidden',isInstalled())}
@@ -424,7 +461,7 @@ $('#resumeBtn').onclick=resumeGame;
 $('#installBtn').onclick=installApp;
 $('#homeRules').onclick=()=>show('rulesScreen');
 $('#homeLibrary').onclick=()=>{stats();show('libraryScreen')};
-$('#homeSettings').onclick=()=>{fillSettings();show('settingsScreen')};
+$('#homeSettings').onclick=()=>{fillSettings();renderRandStats();show('settingsScreen')};
 $('#openLibraryFromSettings').onclick=()=>{stats();show('libraryScreen')};
 $('#rulesBtn').onclick=()=>show('rulesScreen');
 $$('[data-home]').forEach(b=>b.onclick=()=>show('homeScreen'));
@@ -443,7 +480,6 @@ $('#blankGuess').onchange=syncRuleToggles;
 $('#startGameBtn').onclick=startGame;
 $('#revealBtn').onclick=reveal;
 $('#hideSecretBtn').onclick=hideSecret;
-$('#timerBtn').onclick=toggleTimer;
 $('#goVoteBtn').onclick=()=>beginVoting();
 $('#leaveGameBtn').onclick=leaveGame;
 $('#voteTargets').onclick=e=>{const b=e.target.closest('[data-target]');if(b)cast(b.dataset.target)};
@@ -462,11 +498,18 @@ $('#customPairs').onclick=e=>{const b=e.target.closest('[data-delete-pair]');if(
 $('#saveSettingsBtn').onclick=saveSettings;
 $('#recallOpenBtn').onclick=openRecall;
 $('#recallOpenVoteBtn').onclick=openRecall;
+$('#blankOpenBtn').onclick=openBlankModal;
+$('#blankOpenVoteBtn').onclick=openBlankModal;
+$('#blankSubmitBtn').onclick=submitBlank;
+$('#blankCloseBtn').onclick=closeBlankModal;
+$('#blankWord').addEventListener('keydown',e=>{if(e.key==='Enter')submitBlank()});
+$('#blankModal').addEventListener('click',e=>{if(e.target.id==='blankModal')closeBlankModal()});
+$('#resetStatsBtn').onclick=()=>{randStats={seats:{},blank:{}};Store.put('settings','randStats',randStats).catch(()=>{});renderRandStats()};
 $('#recallRevealBtn').onclick=showRecallSecret;
 $('#recallHideBtn').onclick=closeRecall;
 $('#recallCloseBtn').onclick=closeRecall;
 $('#roleRecall').addEventListener('click',e=>{if(e.target.id==='roleRecall')closeRecall()});
-document.addEventListener('keydown',e=>{if(e.key==='Escape')closeRecall()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeRecall();closeBlankModal()}});
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installPrompt=e;updateInstallVisibility()});
 window.addEventListener('appinstalled',()=>{installPrompt=null;updateInstallVisibility()});
 window.matchMedia('(display-mode: standalone)').addEventListener?.('change',updateInstallVisibility);
@@ -475,13 +518,27 @@ window.matchMedia('(display-mode: standalone)').addEventListener?.('change',upda
 async function load(){
   try{
     custom=(await Store.get('customPairs','all'))||[];
+    const rs=await Store.get('settings','randStats');if(rs&&rs.seats)randStats=rs;
     const saved=await Store.get('settings','main');
     if(saved)settings={...settings,...saved,points:{...settings.points,...(saved.points||{})}};
     const s=await Store.get('session','current');
     if(s&&s.state&&s.state.players&&s.ui)pendingSession=s;
   }catch(e){toast('Stockage local indisponible.')}
-  fillSettings();applySettings();renderCategories();syncRuleToggles();updateSetup();stats();updateHome();
+  fillSettings();applySettings();renderCategories();syncRuleToggles();updateSetup();stats();updateHome();renderRandStats();
+  $('#versionLine').textContent='Version '+APP_VERSION;
 }
 updateInstallVisibility();
 load();
-if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(()=>{}))}
+if('serviceWorker'in navigator){
+  const hadController=!!navigator.serviceWorker.controller;let refreshing=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(!hadController||refreshing)return;          // 1re installation : rien à recharger
+    refreshing=true;
+    if(document.querySelector('.screen.active').id==='homeScreen'){toast('Mise à jour installée…');setTimeout(()=>location.reload(),700)}
+    else{reloadWhenHome=true;toast('Nouvelle version prête : elle s\'appliquera au retour à l\'accueil.')}
+  });
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').then(reg=>{
+    reg.update().catch(()=>{});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});
+  }).catch(()=>{}));
+}

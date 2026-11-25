@@ -89,10 +89,10 @@
   <section id="playScreen" class="screen">
     <div class="kicker">Manche <span id="roundNo">1</span></div><h2>La discussion</h2>
     <p class="muted">Chacun donne un indice à son tour. Ni trop précis… ni trop vague.</p>
-    <p class="starter" id="starterLine"></p>
-    <div class="timer"><b id="timerText">02:00</b><button class="secondary" id="timerBtn">Démarrer</button></div>
+    <div class="starter-card"><div class="kicker">Commence</div><div class="starter-name" id="starterName">—</div></div>
+    <p class="composition" id="compositionLine"></p>
     <div class="players-grid" id="playersGrid"></div>
-    <button class="secondary full" id="recallOpenBtn">J'ai oublié mon mot</button>
+    <div class="btn-pair"><button class="secondary" id="recallOpenBtn">J'ai oublié mon mot</button><button class="secondary hidden" id="blankOpenBtn">Je suis M. Blanc</button></div>
     <button class="primary full" id="goVoteBtn">Passer au vote <span>→</span></button>
     <button class="text-btn full" id="leaveGameBtn">Quitter (la partie est sauvegardée)</button>
   </section>
@@ -107,7 +107,7 @@
       <div id="voteTargets" class="vote-targets"></div>
     </div>
     <div class="progress" id="voteProgress"></div>
-    <button class="text-btn full" id="recallOpenVoteBtn">J'ai oublié mon mot</button>
+    <div class="btn-pair"><button class="text-btn" id="recallOpenVoteBtn">J'ai oublié mon mot</button><button class="text-btn hidden" id="blankOpenVoteBtn">Je suis M. Blanc</button></div>
   </section>
 
   <!-- RÉSULTAT DU VOTE -->
@@ -188,11 +188,16 @@
     <div class="block"><div class="field-label">Barème des points</div>
       <label class="row"><span>Victoire des civils</span><input type="number" id="pointsCivil" min="0" max="20" value="2"></label>
       <label class="row"><span>Victoire des undercover</span><input type="number" id="pointsUndercover" min="0" max="20" value="3"></label>
-      <label class="row"><span>Victoire de Monsieur Blanc</span><input type="number" id="pointsBlank" min="0" max="20" value="4"></label></div>
+      <label class="row"><span>Victoire de Monsieur Blanc</span><input type="number" id="pointsBlank" min="0" max="20" value="4"></label>
+      <label class="row"><span>M. Blanc complice<small>Quand les undercover gagnent et qu'il est encore en jeu</small></span><input type="number" id="pointsAccomplice" min="0" max="20" value="1"></label></div>
     <div class="block"><label class="row toggle-row"><span>Animations</span><input type="checkbox" id="animationsEnabled" checked></label></div>
     <button class="primary full" id="saveSettingsBtn">Enregistrer</button>
     <button class="secondary full" id="openLibraryFromSettings">Bibliothèque de mots</button>
     <button class="text-btn full" id="rulesBtn">Comment jouer ?</button>
+    <div class="block"><div class="field-label">Contrôle du hasard <small>Sur cet appareil : à quelle place Monsieur Blanc est tombé. Avec un tirage équitable, les pourcentages se ressemblent.</small></div>
+      <table class="score-table" id="randStats"></table>
+      <button class="text-btn full" id="resetStatsBtn">Réinitialiser le contrôle</button></div>
+    <p class="version" id="versionLine"></p>
   </section>
 
   <!-- RÈGLES -->
@@ -203,8 +208,9 @@
       <h3>Les civils</h3><p>Ils reçoivent tous le même mot et doivent identifier les infiltrés.</p>
       <h3>Les undercover</h3><p>Ils reçoivent un mot proche de celui des civils. Ils doivent se fondre dans le groupe.</p>
       <h3>Monsieur Blanc</h3><p>Il ne reçoit aucun mot et le sait. Il improvise et, s'il est démasqué, tente de deviner le mot des civils. Il ne commence jamais la discussion.</p>
-      <h3>Un tour de jeu</h3><p>1. Chacun saisit son prénom puis découvre secrètement son mot. Civils et undercover ne savent pas lequel ils sont : leur rôle n'est révélé qu'à l'élimination ou à la victoire.<br>2. Les joueurs discutent et donnent des indices.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
-      <h3>Victoire</h3><p>Les civils gagnent quand tous les infiltrés sont éliminés. Les undercover gagnent quand ils sont aussi nombreux que les civils. Monsieur Blanc gagne s'il devine le mot, ou s'il reste seul face à un civil.</p>
+      <h3>Un tour de jeu</h3><p>1. Chacun saisit son prénom puis découvre secrètement son mot. Civils et undercover ne savent pas lequel ils sont : leur rôle n'est révélé qu'à l'élimination ou à la victoire.<br>2. Le joueur annoncé commence : les joueurs discutent et donnent des indices à tour de rôle. À la première discussion, ce joueur n'est jamais Monsieur Blanc ; ensuite, c'est celui qui suit l'éliminé.<br>3. Tous les joueurs encore en jeu votent.<br>4. Le plus voté est éliminé (égalité : revote, puis tirage au sort).<br>5. La partie continue jusqu'à la victoire d'un camp.</p>
+      <h3>Victoire</h3><p>Les civils gagnent quand tous les infiltrés sont éliminés. Les undercover gagnent quand ils sont aussi nombreux que les civils. Monsieur Blanc gagne s'il devine le mot, ou s'il reste seul face à un civil. Quand les undercover gagnent, les Monsieur Blanc encore en jeu marquent un point de complice.</p>
+      <h3>Se dévoiler</h3><p>Monsieur Blanc peut, à tout moment, se dévoiler et donner le mot des civils : s'il est juste, il gagne la partie ; sinon, il est éliminé.</p>
     </div>
   </section>
 </main>
@@ -227,7 +233,20 @@
   </div>
 </div>
 
+<!-- MONSIEUR BLANC SE DÉVOILE -->
+<div id="blankModal" class="recall-overlay hidden" role="dialog" aria-modal="true" aria-label="Monsieur Blanc se dévoile">
+  <div class="recall-modal">
+    <button class="recall-close" id="blankCloseBtn" aria-label="Fermer">×</button>
+    <div class="kicker">Monsieur Blanc</div><h2>Je me dévoile</h2>
+    <p class="muted">Donnez le mot des civils : s'il est juste, vous gagnez ; sinon, vous êtes éliminé.</p>
+    <select id="blankPlayer" class="recall-select"></select>
+    <input id="blankWord" type="text" placeholder="Le mot des civils" autocomplete="off" autocapitalize="off">
+    <p class="error" id="blankError" role="alert"></p>
+    <button class="primary full" id="blankSubmitBtn">Tenter ma chance</button>
+  </div>
+</div>
+
 <div id="toast" class="toast" role="status"></div>
-<script src="js/words.js"></script><script src="js/storage.js"></script><script src="js/game.js"></script><script src="js/app.js"></script>
+<script src="js/version.js"></script><script src="js/words.js"></script><script src="js/storage.js"></script><script src="js/game.js"></script><script src="js/app.js"></script>
 </body>
 </html>

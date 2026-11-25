@@ -4,10 +4,23 @@ function norm(s){
 }
 function pairKey(p){ return p.id || (norm(p.civil)+'|'+norm(p.undercover)); }
 
+/* Entier uniforme dans [0,n) — aléa cryptographique du navigateur quand il existe. */
+function randInt(n){
+  const c=(typeof crypto!=='undefined'&&crypto.getRandomValues)?crypto:null;
+  if(c&&n>0){
+    const max=Math.floor(0x100000000/n)*n, buf=new Uint32Array(1);
+    do{ c.getRandomValues(buf); }while(buf[0]>=max);
+    return buf[0]%n;
+  }
+  return Math.floor(Math.random()*n);
+}
+function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=randInt(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
 class UndercoverGame{
   constructor(){ this.state=null; }
 
-  /* carry : {round, scores:{nom:points}, usedKeys:[...]} pour enchaîner les manches */
+  /* carry : {round, scores:{nom:points}, usedKeys:[...]} pour enchaîner les manches.
+     options.lazyRoles : les rôles restent dans un paquet caché et sont tirés un à un (drawRole) à la validation de chaque joueur. */
   start(names,undercoverCount,blankCount,pairs,options={},carry={}){
     if(names.length<3) throw Error('Il faut au moins 3 joueurs.');
     if(names.length>20) throw Error('20 joueurs maximum.');
@@ -19,40 +32,61 @@ class UndercoverGame{
     let used=carry.usedKeys||[];
     let pool=pairs.filter(p=>!used.includes(pairKey(p)));
     if(!pool.length){ pool=pairs; used=[]; }
-    const pair=pool[Math.floor(Math.random()*pool.length)];
+    const pair=pool[randInt(pool.length)];
 
-    const roles=[
-      ...Array(names.length-undercoverCount-blankCount).fill('civil'),
+    const civils=names.length-undercoverCount-blankCount;
+    const deck=shuffle([
+      ...Array(civils).fill('civil'),
       ...Array(undercoverCount).fill('undercover'),
       ...Array(blankCount).fill('blank')
-    ];
-    for(let i=roles.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [roles[i],roles[j]]=[roles[j],roles[i]]; }
+    ]);
 
     const scores=carry.scores||{};
     const players=names.map((name,i)=>({
-      id:'p'+i, name, role:roles[i],
-      word: roles[i]==='civil'?pair.civil : roles[i]==='undercover'?pair.undercover : null,
-      alive:true, score:scores[name]||0, roundPoints:0
+      id:'p'+i, name, role:null, word:null, alive:true,
+      score:scores[name]||0, roundPoints:0, accomplice:false
     }));
 
     this.state={
-      players, pair, round:carry.round||1, usedKeys:[...used,pairKey(pair)],
+      players, deck, pair, round:carry.round||1, usedKeys:[...used,pairKey(pair)],
+      composition:{civil:civils,undercover:undercoverCount,blank:blankCount},
       votes:{}, voteOrder:[], drawn:null, eliminated:null, guessDone:false,
       options, winner:null, outcome:null, starterId:null,
       needNames:!carry.round   // 1re manche : les joueurs saisissent leur prénom à la distribution
     };
-    this.pickStarter();
+    if(!options.lazyRoles){
+      this.state.players.forEach(p=>this.drawRole(p.id));
+      this.pickStarter();
+    }
     return this.state;
   }
 
+  /* Tire un rôle au hasard dans le paquet caché pour ce joueur (sans effet s'il en a déjà un). */
+  drawRole(id){
+    const s=this.state,p=s.players.find(x=>x.id===id);
+    if(!p) throw Error('Joueur inconnu.');
+    if(p.role) return p;
+    const role=s.deck.splice(randInt(s.deck.length),1)[0];
+    p.role=role;
+    p.word=role==='civil'?s.pair.civil:role==='undercover'?s.pair.undercover:null;
+    return p;
+  }
+
   active(){ return this.state.players.filter(p=>p.alive); }
-  // Monsieur Blanc ne commence jamais (sauf s'il n'y a aucun autre joueur en vie)
+
+  /* Premier tour d'une manche : tirage au sort hors Monsieur Blanc. */
   pickStarter(){
     const a=this.active(), pool=a.filter(p=>p.role!=='blank');
     const from=pool.length?pool:a;
-    this.state.starterId=from[Math.floor(Math.random()*from.length)].id;
+    this.state.starterId=from[randInt(from.length)].id;
+    return this.state.starterId;
   }
-  winners(){ const w=this.state.winner; return this.state.players.filter(p=>p.role===w); }
+  /* Tours suivants : le premier joueur encore en jeu qui suit l'éliminé, dans l'ordre de saisie. */
+  starterAfter(id){
+    const ps=this.state.players,i=ps.findIndex(p=>p.id===id),n=ps.length;
+    for(let k=1;k<=n;k++){ const q=ps[(i+k)%n]; if(q.alive) return q.id; }
+    return null;
+  }
 
   tally(){
     const tally={};
@@ -87,13 +121,30 @@ class UndercoverGame{
     return norm(guess)!==''&&norm(guess)===norm(this.state.pair.civil);
   }
 
+  /* Monsieur Blanc se dévoile à tout moment : bon mot → il gagne ; mauvais mot → il est éliminé.
+     Un joueur qui n'est pas Monsieur Blanc (ou qui est déjà éliminé) : {status:'invalid'}, rien ne change. */
+  revealBlank(playerId,guess){
+    const p=this.state.players.find(x=>x.id===playerId);
+    if(!p||!p.alive||p.role!=='blank') return {status:'invalid'};
+    if(this.guessBlank(playerId,guess)) return {status:'win',player:p};
+    this.eliminate(playerId);
+    this.state.guessDone=true;   // il a déjà tenté sa chance
+    this.state.votes={};          // un éventuel vote en cours est annulé
+    return {status:'out',player:p};
+  }
+
+  /* points : {civil, undercover, blank, accomplice}
+     accomplice : points des Monsieur Blanc encore en jeu quand les undercover gagnent. */
   award(winner,points){
     this.state.winner=winner;
     for(const p of this.state.players){
-      p.roundPoints=(p.role===winner)?Number(points[winner]||0):0;
-      p.score+=p.roundPoints;
+      let pts=0; p.accomplice=false;
+      if(p.role===winner) pts=Number(points[winner]||0);
+      else if(winner==='undercover'&&p.role==='blank'&&p.alive){ pts=Number(points.accomplice||0); p.accomplice=true; }
+      p.roundPoints=pts; p.score+=pts;
     }
   }
+  winners(){ const w=this.state.winner; return this.state.players.filter(p=>p.role===w||p.accomplice); }
 
   nextRound(pairs){
     const s=this.state;
